@@ -66,19 +66,34 @@ public final class NativeRideCapabilityResolver {
     }
 
     private static NativeRideStatus discover(Class<?> type) {
-        int cooperatingMethods = 0;
+        int vanillaRideHooks = 0;
         if (declaresBelowMob(type, "getRiddenInput", Player.class, Vec3.class)) {
-            cooperatingMethods++;
+            vanillaRideHooks++;
         }
         if (declaresBelowMob(type, "getRiddenSpeed", Player.class)) {
-            cooperatingMethods++;
+            vanillaRideHooks++;
         }
         if (declaresBelowMob(type, "tickRidden", Player.class, Vec3.class)) {
-            cooperatingMethods++;
+            vanillaRideHooks++;
         }
-        if (cooperatingMethods >= 2) {
+        if (vanillaRideHooks >= 2) {
             return NativeRideStatus.NATIVE;
         }
+
+        int explicitRiderControlHooks = 0;
+        if (declaresBelowMob(type, "applyRiderMovementInput", Player.class, float.class, float.class, boolean.class)) {
+            explicitRiderControlHooks++;
+        }
+        if (declaresBelowMob(type, "onRiderTakeoffRequest", Player.class)) {
+            explicitRiderControlHooks++;
+        }
+        if (declaresBelowMob(type, "onRiderAbilityUse", Player.class, String.class)) {
+            explicitRiderControlHooks++;
+        }
+        if (explicitRiderControlHooks >= 2) {
+            return NativeRideStatus.NATIVE;
+        }
+
         return Mob.class.isAssignableFrom(type) ? NativeRideStatus.GENERIC_CANDIDATE : NativeRideStatus.UNKNOWN;
     }
 

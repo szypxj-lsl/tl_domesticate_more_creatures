@@ -9,19 +9,29 @@ import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Method;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Pseudo
 @Mixin(targets = "com.leon.saintsdragons.server.entity.base.RideableDragonBase", remap = false)
 public abstract class SaintsRideableDragonMixin implements NativeRideMarker, NativeRideStateMarker {
+    @Unique
+    private static final ConcurrentHashMap<Class<?>, Optional<Method>> tdmc$forceEndAbilityMethods = new ConcurrentHashMap<>();
+
+    @Unique
+    private boolean tdmc$abilityBlocked;
+
     @Shadow public abstract boolean isFlying();
     @Shadow public abstract boolean isAccelerating();
     @Shadow public abstract void setAccelerating(boolean accelerating);
     @Shadow public abstract void setGoingUp(boolean goingUp);
     @Shadow public abstract void setGoingDown(boolean goingDown);
-    @Shadow public abstract void forceEndActiveAbility();
 
     @Override
     public boolean tdmc$isFlying() {
@@ -72,11 +82,11 @@ public abstract class SaintsRideableDragonMixin implements NativeRideMarker, Nat
         }
     }
 
-
     @Inject(method = "tickMountedState", at = @At("TAIL"))
     private void tdmc$enforceMountedExhaustion(CallbackInfo ci) {
         Player rider = tdmc$rider();
         if (rider == null) {
+            tdmc$abilityBlocked = false;
             return;
         }
         LivingEntity self = tdmc$self();
@@ -88,8 +98,34 @@ public abstract class SaintsRideableDragonMixin implements NativeRideMarker, Nat
             setGoingUp(false);
             setGoingDown(true);
         }
-        if (!RideActionApi.allows(rider, self, RideAction.ABILITY)) {
-            forceEndActiveAbility();
+        boolean abilityAllowed = RideActionApi.allows(rider, self, RideAction.ABILITY);
+        if (!abilityAllowed && !tdmc$abilityBlocked) {
+            tdmc$forceEndActiveAbilityIfPresent();
+        }
+        tdmc$abilityBlocked = !abilityAllowed;
+    }
+
+    @Unique
+    private void tdmc$forceEndActiveAbilityIfPresent() {
+        Optional<Method> method = tdmc$forceEndAbilityMethods.computeIfAbsent(
+                tdmc$self().getClass(),
+                SaintsRideableDragonMixin::tdmc$findForceEndActiveAbility
+        );
+        if (method.isEmpty()) {
+            return;
+        }
+        try {
+            method.get().invoke(tdmc$self());
+        } catch (ReflectiveOperationException ignored) {
+        }
+    }
+
+    @Unique
+    private static Optional<Method> tdmc$findForceEndActiveAbility(Class<?> type) {
+        try {
+            return Optional.of(type.getMethod("forceEndActiveAbility"));
+        } catch (NoSuchMethodException exception) {
+            return Optional.empty();
         }
     }
 
