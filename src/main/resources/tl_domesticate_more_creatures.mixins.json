@@ -1,0 +1,46 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.szypxj.tldomesticatemorecreatures.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "compat.iceandfire.IceAndFireDragonBaseMixin",
+    "compat.iceandfire.IceAndFireDragonEggMixin",
+    "compat.iceandfire.IceAndFireDragonEggItemMixin",
+    "compat.iceandfire.IceAndFireEggInIceMixin",
+    "compat.saintsdragons.SaintsDragonEntityMixin",
+    "compat.saintsdragons.SaintsRideableDragonMixin",
+    "compat.saintsdragons.SaintsDragonEggBlockEntityMixin",
+    "compat.saintsdragons.SaintsTimedEggBlockMixin",
+    "compat.saintsdragons.SaintsRaevyxEggBlockMixin",
+    "compat.ers.ErsArtificialNestAccessor",
+    "compat.ers.ErsArtificialNestMixin",
+    "compat.ers.ErsTamableVehicleCompatMixin",
+    "compat.ers.ErsTamableCompatMixin",
+    "riding.LivingEntityRideTravelMixin",
+    "riding.EntityPassengerPositionMixin",
+    "inventory.PlayerItemHandlerMixin",
+    "accessor.AbstractContainerMenuExtraInventoryMixin",
+    "accessor.SlotPositionMixin",
+    "accessor.MobGoalSelectorAccessor",
+    "talent.MobServerAiStepMixin",
+    "talent.MobCamouflageTargetMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  },
+  "client": [
+    "compat.tlmarking.PingKeyHandlerMixin",
+    "client.riding.AuthorizedRiderPoseMixin",
+    "client.riding.PlayerModelRidingPoseMixin",
+    "client.riding.PlayerDismountInputMixin",
+    "client.riding.PlayerRidingScaleMixin",
+    "client.riding.CameraRidingOffsetMixin",
+    "client.riding.MinecraftRideAttackMixin",
+    "client.inventory.AbstractContainerScreenExtraInventoryMixin",
+    "client.inventory.ClientPacketListenerExtraInventoryMixin",
+    "client.talent.LivingEntityRendererCamouflageMixin",
+    "client.spyglass.MinecraftSuperSpyglassGlowMixin"
+  ],
+  "refmap": "tl_domesticate_more_creatures.refmap.json"
+}

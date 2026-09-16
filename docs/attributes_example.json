@@ -1,0 +1,15 @@
+[
+  {
+    "id": "health",
+    "nameKey": "stat.tl_domesticate_more_creatures.health",
+    "icon": "minecraft:red_dye",
+    "target": "minecraft:generic.max_health",
+    "valuePerPoint": 0.05,
+    "operation": "MULTIPLY_BASE",
+    "maxPoints": -1,
+    "wildRandom": true,
+    "showPlayer": true,
+    "showMob": true,
+    "randomWeight": 1.0
+  }
+]

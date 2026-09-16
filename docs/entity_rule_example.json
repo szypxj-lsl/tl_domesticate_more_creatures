@@ -1,0 +1,33 @@
+{
+  "entity": "minecraft:wither",
+  "enabled": true,
+  "minLevel": 150,
+  "maxLevel": 200,
+  "fixedLevel": 180,
+  "maxLevelMultiplier": 1.75,
+  "killExperienceMultiplier": 3.0,
+  "canGainExperience": false,
+  "canLevelUp": false,
+  "resistanceCap": 0.2,
+  "randomWeights": {
+    "health": 2.0,
+    "armor": 1.0,
+    "damage": 2.0
+  },
+  "fixedStats": {
+    "health": 80,
+    "damage": 60
+  },
+  "statOverrides": {
+    "health": {
+      "target": "minecraft:generic.max_health",
+      "valuePerPoint": 0.08,
+      "operation": "MULTIPLY_BASE",
+      "maxPoints": -1,
+      "wildRandom": true,
+      "showPlayer": true,
+      "showMob": true,
+      "randomWeight": 2.0
+    }
+  }
+}

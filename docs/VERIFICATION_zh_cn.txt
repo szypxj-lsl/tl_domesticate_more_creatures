@@ -1,0 +1,13 @@
+TL Domesticate More Creatures 验证记录
+
+已执行：
+1. TorporMath / TamingMath 纯 Java 回归测试：通过。
+2. src/main/resources 与 docs 中 JSON 解析：通过。
+3. 驯服规则示例 TOML 与替换变量后的 mods.toml 解析：通过。
+4. zh_cn / en_us 语言键集合一致，未发现 §8 / §7。
+5. Java 中静态 Component.translatable 语言键扫描：未发现缺失键。
+6. 全 Java 源码执行 javac 语法解析检查：未发现分号、括号、非法结构、文件结束等语法错误；由于缺少 Minecraft/Forge 编译依赖，该检查不能替代 ForgeGradle 编译。
+7. 旧 tl_biological_attribute_panel 仅保留于迁移常量与迁移说明；未发现 FindMe Salvation 运行兼容代码。
+8. tl_marking 使用可选依赖，开发依赖通过 ForgeGradle fg.deobf 本地 flatDir 方式声明。
+
+完整 Forge compileJava 已尝试，但当前执行环境无法解析 Gradle Wrapper 指定的 mirrors.cloud.tencent.com，因此失败发生在 Gradle 8.8 下载阶段，尚未进入 Java/Forge 编译阶段。

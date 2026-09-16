@@ -1,0 +1,107 @@
+package com.szypxj.tldomesticatemorecreatures.spyglass;
+
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.Arrays;
+
+public final class SpyglassRadarBaseline {
+    private static final Object LOCK = new Object();
+    private static volatile double[] attackValues = new double[0];
+    private static volatile double[] lifeValues = new double[0];
+    private static volatile double[] speedValues = new double[0];
+
+    private SpyglassRadarBaseline() {
+    }
+
+    public static void refresh() {
+        synchronized (LOCK) {
+            int capacity = ForgeRegistries.ENTITY_TYPES.getValues().size();
+            double[] attacks = new double[capacity];
+            double[] lives = new double[capacity];
+            double[] speeds = new double[capacity];
+            int attackCount = 0;
+            int lifeCount = 0;
+            int speedCount = 0;
+
+            for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES.getValues()) {
+                if (type == EntityType.PLAYER || !DefaultAttributes.hasSupplier(type)) {
+                    continue;
+                }
+                @SuppressWarnings("unchecked")
+                EntityType<? extends LivingEntity> livingType = (EntityType<? extends LivingEntity>) type;
+                AttributeSupplier supplier = DefaultAttributes.getSupplier(livingType);
+                if (supplier == null || !supplier.hasAttribute(Attributes.MAX_HEALTH)) {
+                    continue;
+                }
+
+                double health = nonNegative(supplier.getBaseValue(Attributes.MAX_HEALTH));
+                if (health > 0.0D) {
+                    lives[lifeCount++] = health;
+                }
+
+                double attack = supplier.hasAttribute(Attributes.ATTACK_DAMAGE)
+                        ? nonNegative(supplier.getBaseValue(Attributes.ATTACK_DAMAGE))
+                        : 0.0D;
+                if (attack > 0.0D) {
+                    attacks[attackCount++] = attack;
+                }
+
+                double speed = supplier.hasAttribute(Attributes.MOVEMENT_SPEED)
+                        ? nonNegative(supplier.getBaseValue(Attributes.MOVEMENT_SPEED))
+                        : 0.0D;
+                if (speed > 0.0D) {
+                    speeds[speedCount++] = speed;
+                }
+            }
+
+            attackValues = sortedUniqueCopy(attacks, attackCount);
+            lifeValues = sortedUniqueCopy(lives, lifeCount);
+            speedValues = sortedUniqueCopy(speeds, speedCount);
+        }
+    }
+
+    public static int powerPercentile(double value) {
+        ensureReady();
+        return SpyglassRadarMath.displayScore(SpyglassRadarMath.percentile(value, attackValues));
+    }
+
+    public static int lifePercentile(double value) {
+        ensureReady();
+        return SpyglassRadarMath.displayScore(SpyglassRadarMath.percentile(value, lifeValues));
+    }
+
+    public static int speedPercentile(double value) {
+        ensureReady();
+        return SpyglassRadarMath.displayScore(SpyglassRadarMath.percentile(value, speedValues));
+    }
+
+    private static void ensureReady() {
+        if (lifeValues.length == 0) {
+            refresh();
+        }
+    }
+
+    private static double[] sortedUniqueCopy(double[] values, int count) {
+        double[] sorted = Arrays.copyOf(values, count);
+        Arrays.sort(sorted);
+        if (sorted.length < 2) {
+            return sorted;
+        }
+        int uniqueCount = 1;
+        for (int i = 1; i < sorted.length; i++) {
+            if (Double.compare(sorted[i], sorted[uniqueCount - 1]) != 0) {
+                sorted[uniqueCount++] = sorted[i];
+            }
+        }
+        return Arrays.copyOf(sorted, uniqueCount);
+    }
+
+    private static double nonNegative(double value) {
+        return Double.isFinite(value) ? Math.max(0.0D, value) : 0.0D;
+    }
+}

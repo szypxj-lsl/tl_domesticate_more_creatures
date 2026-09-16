@@ -1,0 +1,8 @@
+{
+  "replace": false,
+  "values": [
+    "tl_domesticate_more_creatures:narcotic_arrow",
+    "tl_domesticate_more_creatures:strong_narcotic_arrow",
+    "tl_domesticate_more_creatures:concentrated_narcotic_arrow"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "ANA",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "item": "minecraft:arrow"
+    },
+    "N": {
+      "item": "tl_domesticate_more_creatures:narcotic"
+    }
+  },
+  "result": {
+    "item": "tl_domesticate_more_creatures:narcotic_arrow",
+    "count": 8
+  }
+}

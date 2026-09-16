@@ -1,0 +1,21 @@
+{
+  "itemId": "examplemod:pet_accessory",
+  "allowedEntities": [
+    "examplemod:pet"
+  ],
+  "allowedSlots": [
+    "accessory"
+  ],
+  "attributeBonuses": [
+    {
+      "attribute": "minecraft:generic.max_health",
+      "amount": 10.0,
+      "operation": "ADDITION"
+    },
+    {
+      "attribute": "minecraft:generic.attack_damage",
+      "amount": 2.0,
+      "operation": "ADDITION"
+    }
+  ]
+}

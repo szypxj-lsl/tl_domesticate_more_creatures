@@ -1,0 +1,19 @@
+# 眩晕驯服示例
+[[knockout]]
+entity = "minecraft:zombie"
+
+[[knockout.foods]]
+item = "minecraft:rotten_flesh"
+amount = 5
+
+[[knockout.foods]]
+item = "minecraft:golden_apple"
+amount = 2
+
+# 喂食驯服示例
+[[feeding]]
+entity = "minecraft:cow"
+
+[[feeding.foods]]
+item = "minecraft:wheat"
+amount = 3

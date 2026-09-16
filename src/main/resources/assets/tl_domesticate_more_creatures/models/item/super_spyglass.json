@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "tl_domesticate_more_creatures:item/super_spyglass"
+  }
+}

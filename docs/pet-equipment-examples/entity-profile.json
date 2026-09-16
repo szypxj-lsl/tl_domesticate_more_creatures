@@ -1,0 +1,23 @@
+{
+  "entityId": "examplemod:pet",
+  "slots": [
+    {
+      "id": "head",
+      "nameKey": "gui.tl_domesticate_more_creatures.pet_equipment.slot.head",
+      "vanillaSlot": "HEAD",
+      "allowAnyItem": false
+    },
+    {
+      "id": "chest",
+      "nameKey": "gui.tl_domesticate_more_creatures.pet_equipment.slot.chest",
+      "vanillaSlot": "CHEST",
+      "allowAnyItem": false
+    },
+    {
+      "id": "accessory",
+      "nameKey": "gui.tl_domesticate_more_creatures.pet_equipment.slot.accessory",
+      "vanillaSlot": "",
+      "allowAnyItem": false
+    }
+  ]
+}
