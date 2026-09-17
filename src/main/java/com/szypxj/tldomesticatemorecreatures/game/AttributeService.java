@@ -383,6 +383,29 @@ public final class AttributeService {
         return UUID.nameUUIDFromBytes((TlDomesticateMoreCreatures.MOD_ID + ":stat:" + statId).getBytes(StandardCharsets.UTF_8));
     }
 
+    static boolean isTdmcManagedModifier(LivingEntity entity, AttributeModifier modifier) {
+        if (modifier == null) {
+            return false;
+        }
+        UUID id = modifier.getId();
+        if (BOND_HEALTH_MODIFIER_ID.equals(id)) {
+            return true;
+        }
+        for (String statId : MANAGED_TARGET_HISTORY.keySet()) {
+            if (modifierId(statId).equals(id)) {
+                return true;
+            }
+        }
+        if (entity != null) {
+            for (StatDefinition definition : definitionsFor(entity)) {
+                if (modifierId(definition.id()).equals(id)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     static void removeTdmcManagedModifiersForSnapshot(LivingEntity entity) {
         removeManagedModifiers(entity);
         removeBondHealthModifier(entity);

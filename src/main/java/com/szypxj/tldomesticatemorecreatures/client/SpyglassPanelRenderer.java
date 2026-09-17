@@ -353,7 +353,15 @@ public final class SpyglassPanelRenderer {
 
     private static void renderTitle(GuiGraphics graphics, Minecraft minecraft, InspectSnapshot snapshot, int x, int y, int width) {
         var font = minecraft.font;
-        SpyglassTitleContext context = new SpyglassTitleContext(snapshot.entityTypeId(), snapshot.tdmcAffected(), snapshot.baseStats());
+        SpyglassTitleContext context = new SpyglassTitleContext(
+                snapshot.entityTypeId(),
+                snapshot.tdmcAffected(),
+                snapshot.baseStats(),
+                snapshot.elite(),
+                snapshot.radar().power(),
+                snapshot.radar().life(),
+                snapshot.radar().speed()
+        );
         var extensions = SpyglassTitleExtensionRegistry.entries();
         Component level = snapshot.tdmcAffected()
                 ? Component.translatable("spyglass.tl_domesticate_more_creatures.level_segment", snapshot.level())

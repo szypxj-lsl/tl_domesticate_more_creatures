@@ -43,7 +43,6 @@ import com.szypxj.tldomesticatemorecreatures.torpor.TorporService;
 import com.szypxj.tldomesticatemorecreatures.talent.FuryService;
 import com.szypxj.tldomesticatemorecreatures.talent.SpecialTalentService;
 import com.szypxj.tldomesticatemorecreatures.talent.TalentMigrationService;
-import com.szypxj.tldomesticatemorecreatures.spyglass.SpyglassRadarMath;
 import com.szypxj.tldomesticatemorecreatures.spyglass.SpyglassRadarBaseline;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.network.chat.Component;
@@ -53,7 +52,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 
 import java.util.ArrayList;
@@ -288,7 +286,7 @@ public final class SnapshotFactory {
                 ownerName(target),
                 entityTypeId,
                 true,
-                CreatureInfoApi.getBaseStats(target),
+                CreatureInfoApi.getDangerRatingStats(target),
                 data.level(),
                 EliteService.isDisplayElite(target),
                 false,
@@ -322,7 +320,7 @@ public final class SnapshotFactory {
                 ownerName(target),
                 entityTypeId,
                 false,
-                CreatureInfoApi.getBaseStats(target),
+                CreatureInfoApi.getDangerRatingStats(target),
                 0,
                 false,
                 false,
@@ -531,22 +529,10 @@ public final class SnapshotFactory {
     }
 
     private static InspectSnapshot.RadarSnapshot radar(LivingEntity target) {
-        AttributeInstance attackDamage = target.getAttribute(Attributes.ATTACK_DAMAGE);
-        double currentDamage = attackDamage == null
-                ? 0.0D
-                : Math.max(0.0D, attackDamage.getValue()) * AttributeService.damageMultiplier(target);
-        int power = SpyglassRadarBaseline.powerPercentile(currentDamage);
-
-        double effectiveHealth = SpyglassRadarMath.effectiveHealth(
-                target.getMaxHealth(),
-                AttributeService.resistance(target)
-        );
-        int life = SpyglassRadarBaseline.lifePercentile(effectiveHealth);
-
-        AttributeInstance movementSpeed = target.getAttribute(Attributes.MOVEMENT_SPEED);
-        double currentSpeed = movementSpeed == null ? 0.0D : Math.max(0.0D, movementSpeed.getValue());
-        int speed = SpyglassRadarBaseline.speedPercentile(currentSpeed);
-
+        BaseStats baseStats = CreatureInfoApi.getDangerRatingStats(target);
+        int power = SpyglassRadarBaseline.powerPercentile(baseStats.attackDamage());
+        int life = SpyglassRadarBaseline.lifePercentile(baseStats.maxHealth());
+        int speed = SpyglassRadarBaseline.speedPercentile(baseStats.movementSpeed());
         return new InspectSnapshot.RadarSnapshot(true, power, life, speed);
     }
 
