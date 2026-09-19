@@ -1,10 +1,8 @@
 package com.szypxj.tldomesticatemorecreatures.spyglass;
 
+import com.szypxj.tldomesticatemorecreatures.api.creature.BaseStats;
+import com.szypxj.tldomesticatemorecreatures.game.DangerRatingStatsService;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.attributes.DefaultAttributes;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Arrays;
@@ -18,6 +16,11 @@ public final class SpyglassRadarBaseline {
     private SpyglassRadarBaseline() {
     }
 
+    /**
+     * Builds all three percentile distributions from the same representative threat resolver used by TCB.
+     * This keeps skill-aware providers in the comparison population instead of comparing composite power
+     * against a vanilla-ATTACK_DAMAGE-only baseline.
+     */
     public static void refresh() {
         synchronized (LOCK) {
             int capacity = ForgeRegistries.ENTITY_TYPES.getValues().size();
@@ -29,31 +32,20 @@ public final class SpyglassRadarBaseline {
             int speedCount = 0;
 
             for (EntityType<?> type : ForgeRegistries.ENTITY_TYPES.getValues()) {
-                if (type == EntityType.PLAYER || !DefaultAttributes.hasSupplier(type)) {
+                if (type == EntityType.PLAYER) {
                     continue;
                 }
-                @SuppressWarnings("unchecked")
-                EntityType<? extends LivingEntity> livingType = (EntityType<? extends LivingEntity>) type;
-                AttributeSupplier supplier = DefaultAttributes.getSupplier(livingType);
-                if (supplier == null || !supplier.hasAttribute(Attributes.MAX_HEALTH)) {
-                    continue;
-                }
+                BaseStats stats = DangerRatingStatsService.get(type);
+                double health = nonNegative(stats.maxHealth());
+                double attack = nonNegative(stats.attackDamage());
+                double speed = nonNegative(stats.movementSpeed());
 
-                double health = nonNegative(supplier.getBaseValue(Attributes.MAX_HEALTH));
                 if (health > 0.0D) {
                     lives[lifeCount++] = health;
                 }
-
-                double attack = supplier.hasAttribute(Attributes.ATTACK_DAMAGE)
-                        ? nonNegative(supplier.getBaseValue(Attributes.ATTACK_DAMAGE))
-                        : 0.0D;
                 if (attack > 0.0D) {
                     attacks[attackCount++] = attack;
                 }
-
-                double speed = supplier.hasAttribute(Attributes.MOVEMENT_SPEED)
-                        ? nonNegative(supplier.getBaseValue(Attributes.MOVEMENT_SPEED))
-                        : 0.0D;
                 if (speed > 0.0D) {
                     speeds[speedCount++] = speed;
                 }

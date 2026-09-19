@@ -3,6 +3,10 @@ package com.szypxj.tldomesticatemorecreatures.network;
 import com.szypxj.tldomesticatemorecreatures.TlDomesticateMoreCreatures;
 import com.szypxj.tldomesticatemorecreatures.api.attribute.TdmcAttributeLifecycle;
 import com.szypxj.tldomesticatemorecreatures.api.attribute.TdmcAttributeNetwork;
+import com.szypxj.tldomesticatemorecreatures.api.riding.RideAction;
+import com.szypxj.tldomesticatemorecreatures.api.riding.RideActionInfo;
+import com.szypxj.tldomesticatemorecreatures.api.riding.RideActionStatus;
+import com.szypxj.tldomesticatemorecreatures.api.riding.RideCapabilities;
 import com.szypxj.tldomesticatemorecreatures.data.ProgressData;
 import com.szypxj.tldomesticatemorecreatures.command.pet.PetCommand;
 import com.szypxj.tldomesticatemorecreatures.command.pet.PetCommandSummary;
@@ -12,6 +16,7 @@ import com.szypxj.tldomesticatemorecreatures.game.LevelService;
 import com.szypxj.tldomesticatemorecreatures.petmanagement.PetManagementService;
 import com.szypxj.tldomesticatemorecreatures.petmanagement.PetRecord;
 import com.szypxj.tldomesticatemorecreatures.imprint.ImprintData;
+import com.szypxj.tldomesticatemorecreatures.imprint.ImprintService;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SAllocateStatPacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SInspectPacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SSpyglassScanCandidatePacket;
@@ -22,6 +27,9 @@ import com.szypxj.tldomesticatemorecreatures.network.packet.S2CActiveTalentVisua
 import com.szypxj.tldomesticatemorecreatures.network.packet.S2CActiveTalentStatePacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SActiveTalentInputPacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SRideAttackPacket;
+import com.szypxj.tldomesticatemorecreatures.network.packet.C2SRideActionPacket;
+import com.szypxj.tldomesticatemorecreatures.network.packet.S2CRideControlProfilePacket;
+import com.szypxj.tldomesticatemorecreatures.network.packet.S2CRideActionStatePacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SOpenCraftingPacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2SRefreshPanelPacket;
 import com.szypxj.tldomesticatemorecreatures.network.packet.C2STogglePetSelectionPacket;
@@ -77,7 +85,7 @@ import java.util.List;
 import java.util.UUID;
 
 public final class NetworkHandler {
-    private static final String VERSION = "26";
+    private static final String VERSION = "28";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.tryBuild(TlDomesticateMoreCreatures.MOD_ID, "main"),
             () -> VERSION,
@@ -335,6 +343,21 @@ public final class NetworkHandler {
                 .decoder(C2SSpyglassScanCandidatePacket::decode)
                 .consumerMainThread(C2SSpyglassScanCandidatePacket::handle)
                 .add();
+        CHANNEL.messageBuilder(C2SRideActionPacket.class, id++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(C2SRideActionPacket::encode)
+                .decoder(C2SRideActionPacket::decode)
+                .consumerMainThread(C2SRideActionPacket::handle)
+                .add();
+        CHANNEL.messageBuilder(S2CRideControlProfilePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(S2CRideControlProfilePacket::encode)
+                .decoder(S2CRideControlProfilePacket::decode)
+                .consumerMainThread(S2CRideControlProfilePacket::handle)
+                .add();
+        CHANNEL.messageBuilder(S2CRideActionStatePacket.class, id++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(S2CRideActionStatePacket::encode)
+                .decoder(S2CRideActionStatePacket::decode)
+                .consumerMainThread(S2CRideActionStatePacket::handle)
+                .add();
         TdmcAttributeNetwork.register();
         TdmcAttributeLifecycle.initialize();
     }
@@ -346,6 +369,22 @@ public final class NetworkHandler {
 
     public static void sendRideAttack(C2SRideAttackPacket packet) {
         if (packet != null) CHANNEL.sendToServer(packet);
+    }
+
+    public static void sendRideAction(C2SRideActionPacket packet) {
+        if (packet != null) CHANNEL.sendToServer(packet);
+    }
+
+    public static void sendRideControlProfile(ServerPlayer player, int mountEntityId, boolean active, RideCapabilities capabilities, List<RideActionInfo> actions) {
+        if (player == null) return;
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new S2CRideControlProfilePacket(mountEntityId, active, capabilities, actions));
+    }
+
+    public static void sendRideActionState(ServerPlayer player, int mountEntityId, RideAction action, RideActionStatus status) {
+        if (player == null || action == null || status == null) return;
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player),
+                new S2CRideActionStatePacket(mountEntityId, action, status));
     }
 
     public static void sendActiveTalentState(ServerPlayer player, S2CActiveTalentStatePacket packet) {
@@ -617,11 +656,9 @@ public final class NetworkHandler {
         if (entity == null || entity.level().isClientSide) {
             return;
         }
-        boolean active = ImprintData.exists(entity) && ImprintData.of(entity).active();
-        long remaining = active ? Math.max(0L, ImprintData.of(entity).endsAt() - entity.level().getGameTime()) : 0L;
         CHANNEL.send(
                 PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> entity),
-                new S2CImprintStatePacket(entity.getId(), active, remaining)
+                imprintStatePacket(entity)
         );
     }
 
@@ -629,11 +666,27 @@ public final class NetworkHandler {
         if (player == null || entity == null || entity.level().isClientSide) {
             return;
         }
-        boolean active = ImprintData.exists(entity) && ImprintData.of(entity).active();
-        long remaining = active ? Math.max(0L, ImprintData.of(entity).endsAt() - entity.level().getGameTime()) : 0L;
         CHANNEL.send(
                 PacketDistributor.PLAYER.with(() -> player),
-                new S2CImprintStatePacket(entity.getId(), active, remaining)
+                imprintStatePacket(entity)
+        );
+    }
+
+    private static S2CImprintStatePacket imprintStatePacket(LivingEntity entity) {
+        ImprintSnapshot snapshot = ImprintService.snapshot(entity);
+        int completed = ImprintData.exists(entity) ? ImprintData.of(entity).completed() : 0;
+        return new S2CImprintStatePacket(
+                entity.getId(),
+                snapshot.active(),
+                snapshot.finished(),
+                snapshot.percent(),
+                completed,
+                ImprintData.CARE_COUNT,
+                snapshot.remainingTicks(),
+                snapshot.needType(),
+                snapshot.foodNameKey(),
+                snapshot.nextNeedTicks(),
+                snapshot.bonded()
         );
     }
 

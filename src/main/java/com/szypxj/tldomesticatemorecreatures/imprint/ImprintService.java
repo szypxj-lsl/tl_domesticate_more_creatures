@@ -1,6 +1,9 @@
 package com.szypxj.tldomesticatemorecreatures.imprint;
 
 import com.szypxj.tldomesticatemorecreatures.config.Config;
+import com.szypxj.tldomesticatemorecreatures.command.pet.PetCommand;
+import com.szypxj.tldomesticatemorecreatures.command.pet.executor.PetCommandExecutor;
+import com.szypxj.tldomesticatemorecreatures.command.pet.executor.PetCommandExecutors;
 import com.szypxj.tldomesticatemorecreatures.data.ProgressData;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingFood;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRuleManager;
@@ -9,11 +12,13 @@ import com.szypxj.tldomesticatemorecreatures.game.LevelService;
 import com.szypxj.tldomesticatemorecreatures.game.PetOwnershipService;
 import com.szypxj.tldomesticatemorecreatures.network.ImprintSnapshot;
 import com.szypxj.tldomesticatemorecreatures.network.NetworkHandler;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.AgeableMob;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.animal.Animal;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
@@ -21,6 +26,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -82,10 +88,11 @@ public final class ImprintService {
         data.lastCareAt(Long.MIN_VALUE);
 
         List<ResourceLocation> foods = foodCandidates(child);
+        boolean canWalk = supportsWalkNeed(child);
         RandomSource random = child.getRandom();
         for (int i = 0; i < ImprintData.CARE_COUNT; i++) {
             data.needAt(i, Long.MAX_VALUE);
-            ImprintNeedType type = chooseNeed(random, !foods.isEmpty());
+            ImprintNeedType type = chooseNeed(random, !foods.isEmpty(), canWalk);
             data.needType(i, type);
             data.needCompleted(i, false);
             if (type == ImprintNeedType.FEED && !foods.isEmpty()) {
@@ -161,7 +168,7 @@ public final class ImprintService {
         if (required == null || !required.equals(held)) {
             return false;
         }
-        if (!completeNeed(child, data, index, now)) {
+        if (!completeNeed(owner, child, data, index, now)) {
             return false;
         }
         if (!owner.getAbilities().instabuild) {
@@ -183,7 +190,7 @@ public final class ImprintService {
         if (index < 0 || data.needType(index) != ImprintNeedType.PET) {
             return false;
         }
-        return completeNeed(child, data, index, now);
+        return completeNeed(owner, child, data, index, now);
     }
 
     public static void onFollowCommand(ServerPlayer owner, LivingEntity child) {
@@ -197,7 +204,7 @@ public final class ImprintService {
         long now = child.level().getGameTime();
         int index = data.currentNeedIndex(now);
         if (index >= 0 && data.needType(index) == ImprintNeedType.WALK) {
-            completeNeed(child, data, index, now);
+            completeNeed(owner, child, data, index, now);
         }
     }
 
@@ -224,22 +231,31 @@ public final class ImprintService {
                 : ImprintMath.percent(data.completed(), ImprintData.CARE_COUNT);
         long remaining = data.active() ? Math.max(0L, data.endsAt() - now) : 0L;
         int current = data.active() ? data.currentNeedIndex(now) : -1;
+        int displayNeed = current;
         String needType = "";
         String foodNameKey = "";
         long nextNeedTicks = 0L;
-        if (current >= 0) {
-            needType = data.needType(current).name();
-            if (data.needType(current) == ImprintNeedType.FEED) {
-                ResourceLocation foodId = ResourceLocation.tryParse(data.needFood(current));
+        if (current < 0 && data.active()) {
+            long next = Long.MAX_VALUE;
+            for (int i = 0; i < ImprintData.CARE_COUNT; i++) {
+                long needAt = data.needAt(i);
+                if (!data.needCompleted(i) && needAt > now && needAt < next) {
+                    next = needAt;
+                    displayNeed = i;
+                }
+            }
+            if (displayNeed >= 0 && next != Long.MAX_VALUE) {
+                nextNeedTicks = next - now;
+            }
+        }
+        if (displayNeed >= 0) {
+            needType = data.needType(displayNeed).name();
+            if (data.needType(displayNeed) == ImprintNeedType.FEED) {
+                ResourceLocation foodId = ResourceLocation.tryParse(data.needFood(displayNeed));
                 Item item = foodId == null ? null : ForgeRegistries.ITEMS.getValue(foodId);
                 if (item != null) {
                     foodNameKey = item.getDescriptionId();
                 }
-            }
-        } else if (data.active()) {
-            long next = data.nextNeedAt(now);
-            if (next > now) {
-                nextNeedTicks = next - now;
             }
         }
         return new ImprintSnapshot(
@@ -264,19 +280,52 @@ public final class ImprintService {
         return data.active() ? data : null;
     }
 
-    private static boolean completeNeed(LivingEntity child, ImprintData data, int index, long now) {
+    private static boolean completeNeed(ServerPlayer owner, LivingEntity child, ImprintData data, int index, long now) {
         if (data.needCompleted(index) || data.lastCareAt() == now) {
             return false;
         }
+        Component completedNeed = completedNeedLabel(data, index);
         data.lastCareAt(now);
         data.needCompleted(index, true);
         data.completed(data.completed() + 1);
-        if (data.completed() >= ImprintData.CARE_COUNT) {
+        int completed = data.completed();
+        if (completed >= ImprintData.CARE_COUNT) {
             finish(child, data);
-        } else if (index + 1 < ImprintData.CARE_COUNT) {
-            data.needAt(index + 1, saturatingAdd(now, NEXT_NEED_DELAY_TICKS));
+            owner.displayClientMessage(Component.translatable(
+                    "message.tl_domesticate_more_creatures.imprint_completed",
+                    completedNeed,
+                    completed,
+                    ImprintData.CARE_COUNT
+            ), true);
+        } else {
+            if (index + 1 < ImprintData.CARE_COUNT) {
+                data.needAt(index + 1, saturatingAdd(now, NEXT_NEED_DELAY_TICKS));
+            }
+            NetworkHandler.sendImprintState(child);
+            owner.displayClientMessage(Component.translatable(
+                    "message.tl_domesticate_more_creatures.imprint_need_completed",
+                    completedNeed,
+                    completed,
+                    ImprintData.CARE_COUNT
+            ), true);
         }
         return true;
+    }
+
+    private static Component completedNeedLabel(ImprintData data, int index) {
+        ImprintNeedType type = data.needType(index);
+        return switch (type) {
+            case PET -> Component.translatable("message.tl_domesticate_more_creatures.imprint_need_pet_label");
+            case WALK -> Component.translatable("message.tl_domesticate_more_creatures.imprint_need_walk_label");
+            case FEED -> {
+                ResourceLocation foodId = ResourceLocation.tryParse(data.needFood(index));
+                Item item = foodId == null ? null : ForgeRegistries.ITEMS.getValue(foodId);
+                Component food = item == null
+                        ? Component.translatable("message.tl_domesticate_more_creatures.imprint_food_unknown")
+                        : Component.translatable(item.getDescriptionId());
+                yield Component.translatable("message.tl_domesticate_more_creatures.imprint_need_feed_label", food);
+            }
+        };
     }
 
     private static void finish(LivingEntity entity, ImprintData data) {
@@ -301,7 +350,7 @@ public final class ImprintService {
     }
 
     private static boolean isOwner(ServerPlayer owner, LivingEntity child) {
-        return PetOwnershipService.ownerUuid(child).map(owner.getUUID()::equals).orElse(true);
+        return PetOwnershipService.isOwnedBy(child, owner);
     }
 
     private static long remainingGrowthTicks(LivingEntity entity) {
@@ -315,11 +364,24 @@ public final class ImprintService {
         return entity.isBaby() ? -1L : 0L;
     }
 
-    private static ImprintNeedType chooseNeed(RandomSource random, boolean canFeed) {
-        if (!canFeed) {
-            return random.nextBoolean() ? ImprintNeedType.WALK : ImprintNeedType.PET;
+    private static boolean supportsWalkNeed(LivingEntity child) {
+        if (!(child instanceof Mob mob)) {
+            return false;
         }
-        return ImprintNeedType.values()[random.nextInt(ImprintNeedType.values().length)];
+        PetCommandExecutor follow = PetCommandExecutors.get(PetCommand.FOLLOW);
+        return follow != null && follow.supports(mob);
+    }
+
+    private static ImprintNeedType chooseNeed(RandomSource random, boolean canFeed, boolean canWalk) {
+        List<ImprintNeedType> candidates = new ArrayList<>(3);
+        candidates.add(ImprintNeedType.PET);
+        if (canFeed) {
+            candidates.add(ImprintNeedType.FEED);
+        }
+        if (canWalk) {
+            candidates.add(ImprintNeedType.WALK);
+        }
+        return candidates.get(random.nextInt(candidates.size()));
     }
 
     private static List<ResourceLocation> foodCandidates(LivingEntity entity) {

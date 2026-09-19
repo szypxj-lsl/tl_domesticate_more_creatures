@@ -2,7 +2,17 @@ package com.szypxj.tldomesticatemorecreatures.compat;
 
 import com.szypxj.tldomesticatemorecreatures.command.pet.PetCommand;
 import com.szypxj.tldomesticatemorecreatures.compat.iceandfire.IceAndFireCommandCompat;
+import com.szypxj.tldomesticatemorecreatures.compat.iceandfire.IceAndFireRideControlProvider;
+import com.szypxj.tldomesticatemorecreatures.compat.iceandfire.IceAndFireThreatProvider;
+import com.szypxj.tldomesticatemorecreatures.compat.ers.ErsRideControlProvider;
+import com.szypxj.tldomesticatemorecreatures.compat.ror.RorRideControlProvider;
+import com.szypxj.tldomesticatemorecreatures.compat.saintsdragons.SaintsDragonsRideControlProvider;
+import com.szypxj.tldomesticatemorecreatures.compat.saintsdragons.SaintsDragonsThreatProvider;
 import com.szypxj.tldomesticatemorecreatures.compat.saintsdragons.SaintsDragonCommandCompat;
+import com.szypxj.tldomesticatemorecreatures.compat.wanancientbeasts.WanAncientBeastsCompat;
+import com.szypxj.tldomesticatemorecreatures.compat.unusualprehistory.UnusualPrehistoryCompat;
+import com.szypxj.tldomesticatemorecreatures.compat.fossil.FossilCompat;
+import com.szypxj.tldomesticatemorecreatures.compat.similarprehistory.SimilarPrehistoryCompat;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.ModList;
@@ -23,6 +33,16 @@ public final class CompatBootstrap {
         initialized = true;
         SaintsDragonCommandCompat.register();
         IceAndFireCommandCompat.register();
+        IceAndFireThreatProvider.register();
+        SaintsDragonsThreatProvider.register();
+        IceAndFireRideControlProvider.register();
+        SaintsDragonsRideControlProvider.register();
+        ErsRideControlProvider.register();
+        RorRideControlProvider.register();
+        WanAncientBeastsCompat.register();
+        UnusualPrehistoryCompat.register();
+        FossilCompat.register();
+        SimilarPrehistoryCompat.register();
         if (!ModList.get().isLoaded("tl_marking")) {
             return;
         }

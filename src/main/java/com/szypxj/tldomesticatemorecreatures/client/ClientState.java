@@ -6,6 +6,7 @@ import com.szypxj.tldomesticatemorecreatures.network.PanelSnapshot;
 import com.szypxj.tldomesticatemorecreatures.network.PetManagementDetail;
 import com.szypxj.tldomesticatemorecreatures.network.PetManagementSummary;
 import com.szypxj.tldomesticatemorecreatures.network.TargetHudSnapshot;
+import com.szypxj.tldomesticatemorecreatures.network.packet.S2CImprintStatePacket;
 import com.szypxj.tldomesticatemorecreatures.riding.RideEnvironment;
 import net.minecraft.client.Minecraft;
 
@@ -17,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public final class ClientState {
     private static final Map<Integer, Integer> LEVELS = new ConcurrentHashMap<>();
-    private static final Map<Integer, Long> IMPRINT_END_TICKS = new ConcurrentHashMap<>();
+    private static final Map<Integer, ClientImprintState> IMPRINT_STATES = new ConcurrentHashMap<>();
     private static volatile InspectSnapshot inspect;
     private static volatile long inspectTick;
     private static volatile TargetHudSnapshot targetHud;
@@ -61,37 +62,64 @@ public final class ClientState {
     }
 
 
-    public static void setImprintState(int entityId, boolean active, long remainingTicks) {
+    public static void setImprintState(S2CImprintStatePacket packet) {
+        if (packet == null) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
-        if (!active || remainingTicks <= 0L || minecraft.level == null) {
-            IMPRINT_END_TICKS.remove(entityId);
+        if (!packet.active() || packet.remainingTicks() <= 0L || minecraft.level == null) {
+            IMPRINT_STATES.remove(packet.entityId());
             return;
         }
         long now = minecraft.level.getGameTime();
-        long end = remainingTicks > Long.MAX_VALUE - now ? Long.MAX_VALUE : now + remainingTicks;
-        IMPRINT_END_TICKS.put(entityId, end);
+        IMPRINT_STATES.put(packet.entityId(), new ClientImprintState(
+                true,
+                packet.finished(),
+                packet.percent(),
+                packet.completed(),
+                packet.total(),
+                saturatingAdd(now, packet.remainingTicks()),
+                packet.needType(),
+                packet.foodNameKey(),
+                packet.nextNeedTicks() > 0L ? saturatingAdd(now, packet.nextNeedTicks()) : 0L,
+                packet.bonded()
+        ));
+    }
+
+    public static ClientImprintState imprintState(int entityId) {
+        Minecraft minecraft = Minecraft.getInstance();
+        ClientImprintState state = IMPRINT_STATES.get(entityId);
+        if (state == null || minecraft.level == null) {
+            return null;
+        }
+        if (!state.active() || state.remainingTicks(minecraft.level.getGameTime()) <= 0L) {
+            IMPRINT_STATES.remove(entityId, state);
+            return null;
+        }
+        return state;
     }
 
     public static long imprintRemainingTicks(int entityId) {
         Minecraft minecraft = Minecraft.getInstance();
-        Long end = IMPRINT_END_TICKS.get(entityId);
-        if (end == null || minecraft.level == null) {
-            return -1L;
-        }
-        long remaining = end - minecraft.level.getGameTime();
-        if (remaining <= 0L) {
-            IMPRINT_END_TICKS.remove(entityId);
-            return -1L;
-        }
-        return remaining;
+        ClientImprintState state = imprintState(entityId);
+        return state == null || minecraft.level == null
+                ? -1L
+                : state.remainingTicks(minecraft.level.getGameTime());
     }
 
     public static boolean hasActiveImprint(int entityId) {
-        return imprintRemainingTicks(entityId) >= 0L;
+        return imprintState(entityId) != null;
     }
 
     public static void removeImprintState(int entityId) {
-        IMPRINT_END_TICKS.remove(entityId);
+        IMPRINT_STATES.remove(entityId);
+    }
+
+    private static long saturatingAdd(long a, long b) {
+        if (b > 0L && a > Long.MAX_VALUE - b) {
+            return Long.MAX_VALUE;
+        }
+        return a + b;
     }
 
     public static void setInspect(InspectSnapshot snapshot) {
@@ -256,7 +284,7 @@ public final class ClientState {
 
     public static void clearAll() {
         LEVELS.clear();
-        IMPRINT_END_TICKS.clear();
+        IMPRINT_STATES.clear();
         selectedPetIds = Set.of();
         ownedPetIds.clear();
         petCommandSummary = PetCommandSummary.NONE;

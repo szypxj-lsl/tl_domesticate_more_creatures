@@ -39,6 +39,7 @@ import com.szypxj.tldomesticatemorecreatures.game.genetics.GeneticEntityCarrier;
 import com.szypxj.tldomesticatemorecreatures.game.genetics.GeneticEntityTransferScope;
 import com.szypxj.tldomesticatemorecreatures.game.genetics.GeneticItemEntityTransferScope;
 import com.szypxj.tldomesticatemorecreatures.game.genetics.HatchScope;
+import com.szypxj.tldomesticatemorecreatures.game.genetics.EntityStateTransferScope;
 import com.szypxj.tldomesticatemorecreatures.registry.ModItems;
 import com.szypxj.tldomesticatemorecreatures.spyglass.SpyglassRadarBaseline;
 import com.szypxj.tldomesticatemorecreatures.spyglass.SpyglassScanService;
@@ -87,7 +88,10 @@ public final class GameplayEvents {
             return;
         }
 
+        EntityStateTransferScope.tryTransfer(living);
+
         if (HatchScope.tryApply(living)) {
+            ImprintService.markOffspring(living);
             EliteService.ensurePresentation(living);
             return;
         }

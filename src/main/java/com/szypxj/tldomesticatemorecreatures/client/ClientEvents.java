@@ -232,17 +232,39 @@ public final class ClientEvents {
     @SubscribeEvent
     public static void onRenderLivingPost(RenderLivingEvent.Post<?, ?> event) {
         LivingEntity entity = event.getEntity();
-        long remainingTicks = ClientState.imprintRemainingTicks(entity.getId());
-        if (remainingTicks < 0L) {
+        ClientImprintState state = ClientState.imprintState(entity.getId());
+        if (state == null) {
             return;
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        Component time = Component.literal(formatNameplateTime(remainingTicks)).withStyle(ChatFormatting.GREEN);
-        Component text = Component.translatable(
-                "nameplate.tl_domesticate_more_creatures.imprint_remaining",
-                time
-        ).withStyle(ChatFormatting.WHITE);
+        if (minecraft.level == null) {
+            return;
+        }
+        long now = minecraft.level.getGameTime();
+        long remainingTicks = state.remainingTicks(now);
+        if (remainingTicks <= 0L) {
+            ClientState.removeImprintState(entity.getId());
+            return;
+        }
+
+        Component attention = Component.translatable(
+                "nameplate.tl_domesticate_more_creatures.imprint_attention_remaining",
+                formatNameplateTime(remainingTicks)
+        );
+        Component progress = Component.translatable(
+                "nameplate.tl_domesticate_more_creatures.imprint_progress",
+                state.percent(),
+                state.completed(),
+                state.total()
+        );
+        long nextNeedTicks = state.nextNeedTicks(now);
+        Component need = nextNeedTicks > 0L
+                ? Component.translatable(
+                        "nameplate.tl_domesticate_more_creatures.imprint_next_need",
+                        formatNameplateTime(nextNeedTicks)
+                )
+                : imprintNeedText(state);
 
         PoseStack poseStack = event.getPoseStack();
         poseStack.pushPose();
@@ -252,21 +274,45 @@ public final class ClientEvents {
 
         Matrix4f matrix = poseStack.last().pose();
         Font font = minecraft.font;
-        float x = -font.width(text) / 2.0F;
-        int background = TdmcUiTheme.HUD_BACKGROUND;
+        drawImprintNameplateLine(font, event, matrix, attention, -20.0F);
+        drawImprintNameplateLine(font, event, matrix, progress, -10.0F);
+        drawImprintNameplateLine(font, event, matrix, need, 0.0F);
+        poseStack.popPose();
+    }
+
+    private static Component imprintNeedText(ClientImprintState state) {
+        return switch (state.needType()) {
+            case "PET" -> Component.translatable("nameplate.tl_domesticate_more_creatures.imprint_need_pet");
+            case "WALK" -> Component.translatable("nameplate.tl_domesticate_more_creatures.imprint_need_walk");
+            case "FEED" -> Component.translatable(
+                    "nameplate.tl_domesticate_more_creatures.imprint_need_feed",
+                    state.foodNameKey().isBlank()
+                            ? Component.translatable("nameplate.tl_domesticate_more_creatures.imprint_food_unknown")
+                            : Component.translatable(state.foodNameKey())
+            );
+            default -> Component.translatable("nameplate.tl_domesticate_more_creatures.imprint_need_pet");
+        };
+    }
+
+    private static void drawImprintNameplateLine(
+            Font font,
+            RenderLivingEvent.Post<?, ?> event,
+            Matrix4f matrix,
+            Component text,
+            float y
+    ) {
         font.drawInBatch(
                 text,
-                x,
-                0.0F,
+                -font.width(text) / 2.0F,
+                y,
                 0xFFFFFFFF,
                 false,
                 matrix,
                 event.getMultiBufferSource(),
                 Font.DisplayMode.NORMAL,
-                background,
+                TdmcUiTheme.HUD_BACKGROUND,
                 event.getPackedLight()
         );
-        poseStack.popPose();
     }
 
     private static String formatNameplateTime(long ticks) {

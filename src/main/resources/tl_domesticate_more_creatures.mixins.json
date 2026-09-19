@@ -24,12 +24,24 @@
     "accessor.SlotPositionMixin",
     "accessor.MobGoalSelectorAccessor",
     "talent.MobServerAiStepMixin",
-    "talent.MobCamouflageTargetMixin"
+    "talent.MobCamouflageTargetMixin",
+    "compat.ers.ErsFlyableVehicleRideMixin",
+    "compat.wanancientbeasts.WanBreedingMixin",
+    "compat.wanancientbeasts.WanEggBlockItemMixin",
+    "compat.wanancientbeasts.WanBeastEggBlockMixin",
+    "compat.fossil.FossilPrehistoricBreedingMixin",
+    "compat.fossil.FossilDinosaurEggMixin",
+    "compat.fossil.FossilEggItemMixin",
+    "compat.fossil.FossilBirdEggItemMixin",
+    "compat.fossil.FossilThrownBirdEggMixin",
+    "compat.similarprehistory.SimilarBabyGrowthMixin"
   ],
   "injectors": {
     "defaultRequire": 0
   },
   "client": [
+    "client.compat.iceandfire.IceAndFireDragonControlClientMixin",
+    "client.compat.saintsdragons.SaintsDragonsRightClickControlMixin",
     "compat.tlmarking.PingKeyHandlerMixin",
     "client.riding.AuthorizedRiderPoseMixin",
     "client.riding.PlayerModelRidingPoseMixin",
@@ -40,7 +52,9 @@
     "client.inventory.AbstractContainerScreenExtraInventoryMixin",
     "client.inventory.ClientPacketListenerExtraInventoryMixin",
     "client.talent.LivingEntityRendererCamouflageMixin",
-    "client.spyglass.MinecraftSuperSpyglassGlowMixin"
+    "client.spyglass.MinecraftSuperSpyglassGlowMixin",
+    "client.compat.ers.ErsUnifiedControlClientMixin",
+    "client.compat.ror.RorUnifiedKeySuppressMixin"
   ],
   "refmap": "tl_domesticate_more_creatures.refmap.json"
 }

@@ -1,11 +1,10 @@
 package com.szypxj.tldomesticatemorecreatures.riding;
 
-import com.szypxj.tldomesticatemorecreatures.api.riding.RideAction;
-import com.szypxj.tldomesticatemorecreatures.api.riding.RideActionApi;
+import com.szypxj.tldomesticatemorecreatures.api.riding.RideActionStatus;
 import com.szypxj.tldomesticatemorecreatures.game.PetOwnershipService;
-import com.szypxj.tldomesticatemorecreatures.talent.active.ActiveTalentService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -21,43 +20,74 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Shared implementation of TDMC's generic mounted melee attack.
+ *
+ * <p>Input validation and provider routing live in RideControlDispatcher. This
+ * class only resolves the aimed target, invokes the mount's own attack entry
+ * point and tracks the generic attack cooldown.</p>
+ */
 public final class RideAttackService {
     private static final double AIM_RANGE = 6.0D;
     private static final int DEFAULT_ATTACK_INTERVAL_TICKS = 10;
-    private static final Map<UUID, Integer> LAST_SEQUENCE = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> NEXT_ATTACK_GAME_TIME = new ConcurrentHashMap<>();
 
     private RideAttackService() {
     }
 
-    public static void acceptAttack(ServerPlayer rider, int mountEntityId, int sequence) {
-        if (rider == null || sequence < 0 || !(rider.getVehicle() instanceof Mob mount) || mount.getId() != mountEntityId) return;
-        if (!RideService.isGenericRider(rider)) return;
-        if (ActiveTalentService.blocksRideInput(mount)) return;
-        if (!RideActionApi.allows(rider, mount, RideAction.ATTACK)) return;
-
-        int lastSequence = LAST_SEQUENCE.getOrDefault(rider.getUUID(), Integer.MIN_VALUE);
-        if (sequence <= lastSequence) return;
-        LAST_SEQUENCE.put(rider.getUUID(), sequence);
-
+    public static BasicAttackOutcome performBasicAttack(ServerPlayer rider, Mob mount) {
+        if (rider == null || mount == null || rider.getVehicle() != mount || !mount.isAlive() || mount.isRemoved()) {
+            return BasicAttackOutcome.INVALID;
+        }
         long now = mount.level().getGameTime();
-        if (now < NEXT_ATTACK_GAME_TIME.getOrDefault(rider.getUUID(), 0L)) return;
+        if (now < NEXT_ATTACK_GAME_TIME.getOrDefault(rider.getUUID(), 0L)) {
+            return BasicAttackOutcome.COOLDOWN;
+        }
+
         LivingEntity target = raycastTarget(rider, mount);
-        if (target == null || !withinAttackRange(mount, target)) return;
+        if (target == null || !withinAttackRange(mount, target)) {
+            return BasicAttackOutcome.NO_TARGET;
+        }
 
         mount.getLookControl().setLookAt(target, 180.0F, 180.0F);
-        mount.doHurtTarget(target);
+        if (!mount.doHurtTarget(target)) {
+            return BasicAttackOutcome.NO_TARGET;
+        }
+        mount.swing(InteractionHand.MAIN_HAND, true);
         NEXT_ATTACK_GAME_TIME.put(rider.getUUID(), now + attackIntervalTicks(mount));
+        return BasicAttackOutcome.HIT;
+    }
+
+    public static RideActionStatus attackStatus(ServerPlayer rider, Mob mount) {
+        if (rider == null || mount == null) {
+            return RideActionStatus.BLOCKED;
+        }
+        long now = mount.level().getGameTime();
+        long next = NEXT_ATTACK_GAME_TIME.getOrDefault(rider.getUUID(), 0L);
+        int remaining = (int) Math.max(0L, Math.min(Integer.MAX_VALUE, next - now));
+        return remaining <= 0
+                ? RideActionStatus.READY
+                : RideActionStatus.cooldown(remaining, attackIntervalTicks(mount));
+    }
+
+    public static int attackIntervalTicks(Mob mount) {
+        if (mount == null) {
+            return DEFAULT_ATTACK_INTERVAL_TICKS;
+        }
+        AttributeInstance attackSpeed = mount.getAttribute(Attributes.ATTACK_SPEED);
+        if (attackSpeed == null) return DEFAULT_ATTACK_INTERVAL_TICKS;
+        double value = attackSpeed.getValue();
+        if (!Double.isFinite(value) || value <= 0.0D) return DEFAULT_ATTACK_INTERVAL_TICKS;
+        return Mth.clamp((int) Math.ceil(20.0D / value), 5, 20);
     }
 
     public static void clearPlayer(ServerPlayer rider) {
-        if (rider == null) return;
-        LAST_SEQUENCE.remove(rider.getUUID());
-        NEXT_ATTACK_GAME_TIME.remove(rider.getUUID());
+        if (rider != null) {
+            NEXT_ATTACK_GAME_TIME.remove(rider.getUUID());
+        }
     }
 
     public static void clearAll() {
-        LAST_SEQUENCE.clear();
         NEXT_ATTACK_GAME_TIME.clear();
     }
 
@@ -92,12 +122,11 @@ public final class RideAttackService {
         return mount.distanceToSqr(target) <= reach * reach && mount.hasLineOfSight(target);
     }
 
-    private static int attackIntervalTicks(Mob mount) {
-        AttributeInstance attackSpeed = mount.getAttribute(Attributes.ATTACK_SPEED);
-        if (attackSpeed == null) return DEFAULT_ATTACK_INTERVAL_TICKS;
-        double value = attackSpeed.getValue();
-        if (!Double.isFinite(value) || value <= 0.0D) return DEFAULT_ATTACK_INTERVAL_TICKS;
-        return Mth.clamp((int) Math.ceil(20.0D / value), 5, 20);
+    public enum BasicAttackOutcome {
+        HIT,
+        NO_TARGET,
+        COOLDOWN,
+        INVALID
     }
 
     private record Candidate(LivingEntity entity, Optional<Vec3> hit) {

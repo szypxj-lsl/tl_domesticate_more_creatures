@@ -4,6 +4,7 @@ import com.szypxj.tldomesticatemorecreatures.domestication.DomesticationData;
 import com.szypxj.tldomesticatemorecreatures.game.PetOwnershipService;
 import com.szypxj.tldomesticatemorecreatures.network.NetworkHandler;
 import com.szypxj.tldomesticatemorecreatures.riding.capability.RideCapability;
+import com.szypxj.tldomesticatemorecreatures.riding.control.action.RideControlDispatcher;
 import com.szypxj.tldomesticatemorecreatures.riding.config.EntityRideProfile;
 import com.szypxj.tldomesticatemorecreatures.riding.config.RidingConfigManager;
 import com.szypxj.tldomesticatemorecreatures.talent.FuryService;
@@ -43,7 +44,11 @@ public final class RideService {
             if (!mount.getPassengers().isEmpty() || rider.isPassenger()) {
                 return InteractionResult.FAIL;
             }
-            return rider.startRiding(mount, true) ? InteractionResult.CONSUME : InteractionResult.FAIL;
+            if (!rider.startRiding(mount, true)) {
+                return InteractionResult.FAIL;
+            }
+            RideControlDispatcher.syncProfile(rider, mount, true);
+            return InteractionResult.CONSUME;
         }
         if (!(mount instanceof Mob) || result != RideEligibilityResult.ALLOW_GENERIC || !mayRide(rider, mount)) {
             return InteractionResult.FAIL;
@@ -58,6 +63,7 @@ public final class RideService {
         markGenericRide(mount, rider.getUUID());
         prepareMountedBehavior(mount);
         NetworkHandler.sendRideState(rider, mount, true, RideEnvironment.GROUND, RidingConfigManager.generation());
+        RideControlDispatcher.syncProfile(rider, mount, true);
         return InteractionResult.CONSUME;
     }
 
@@ -70,7 +76,11 @@ public final class RideService {
             return tryMount(rider, mount).consumesAction();
         }
         if (result == RideEligibilityResult.NATIVE_BYPASS) {
-            return rider.startRiding(mount, true);
+            boolean mounted = rider.startRiding(mount, true);
+            if (mounted) {
+                RideControlDispatcher.syncProfile(rider, mount, true);
+            }
+            return mounted;
         }
         return false;
     }
@@ -153,6 +163,7 @@ public final class RideService {
             rider = level.getServer().getPlayerList().getPlayer(runtime.riderUuid());
             if (rider != null) {
                 NetworkHandler.sendRideState(rider, mount, false, runtime.environment(), RidingConfigManager.generation());
+                RideControlDispatcher.syncProfile(rider, mount, false);
                 if (rider.getVehicle() == mount) {
                     rider.stopRiding();
                 }
@@ -223,6 +234,7 @@ public final class RideService {
                 if (runtime.environment() != nextEnvironment) {
                     runtime.environment(nextEnvironment);
                     NetworkHandler.sendRideState(rider, mount, true, nextEnvironment, generation);
+                    RideControlDispatcher.syncProfile(rider, mount, true);
                 }
                 capability.tick(rider, mob, runtime.input(), profile, runtime);
             }
@@ -262,6 +274,7 @@ public final class RideService {
                 markGenericRide(mount, rider.getUUID());
                 prepareMountedBehavior(mount);
                 NetworkHandler.sendRideState(rider, mount, true, environment, RidingConfigManager.generation());
+                RideControlDispatcher.syncProfile(rider, mount, true);
                 continue;
             }
             if (isMarkedGenericRide(mount, rider.getUUID()) && result == RideEligibilityResult.DENY) {

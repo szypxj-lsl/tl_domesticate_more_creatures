@@ -4,6 +4,7 @@ import com.szypxj.tldomesticatemorecreatures.game.BaseAttributeSnapshotService;
 import com.szypxj.tldomesticatemorecreatures.game.LevelService;
 import com.szypxj.tldomesticatemorecreatures.elite.EliteService;
 import com.szypxj.tldomesticatemorecreatures.game.DangerRatingStatsService;
+import com.szypxj.tldomesticatemorecreatures.api.creature.threat.CreatureThreatProfile;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingFoodDisplay;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRule;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRuleManager;
@@ -69,9 +70,18 @@ public final class CreatureInfoApi {
         return DangerRatingStatsService.get(type);
     }
 
+    /** Current-instance, stage-aware threat profile used by live TDMC scans. */
+    public static CreatureThreatProfile getThreatProfile(LivingEntity entity) {
+        return DangerRatingStatsService.getProfile(entity);
+    }
+
+    /** Species-level representative profile used by encyclopedic consumers such as TCB. */
+    public static CreatureThreatProfile getRepresentativeThreatProfile(EntityType<?> type) {
+        return DangerRatingStatsService.getRepresentativeProfile(type);
+    }
+
     public static void refreshDangerRatingData() {
         BaseAttributeSnapshotService.clearTypeCache();
-        DangerRatingStatsService.clearObserved();
         SpyglassRadarBaseline.refresh();
     }
 

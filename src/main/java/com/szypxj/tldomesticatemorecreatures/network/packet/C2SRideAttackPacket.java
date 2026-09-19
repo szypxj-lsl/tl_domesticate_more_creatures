@@ -1,12 +1,13 @@
 package com.szypxj.tldomesticatemorecreatures.network.packet;
 
-import com.szypxj.tldomesticatemorecreatures.riding.RideAttackService;
+import com.szypxj.tldomesticatemorecreatures.riding.control.action.RideControlDispatcher;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.function.Supplier;
 
+/** Legacy packet retained so existing call sites do not break during migration. */
 public record C2SRideAttackPacket(int mountEntityId, int sequence) {
     public static void encode(C2SRideAttackPacket packet, FriendlyByteBuf buffer) {
         buffer.writeVarInt(packet.mountEntityId());
@@ -21,7 +22,9 @@ public record C2SRideAttackPacket(int mountEntityId, int sequence) {
         NetworkEvent.Context context = contextSupplier.get();
         context.enqueueWork(() -> {
             ServerPlayer sender = context.getSender();
-            if (sender != null) RideAttackService.acceptAttack(sender, packet.mountEntityId(), packet.sequence());
+            if (sender != null) {
+                RideControlDispatcher.acceptLegacyPrimaryAttack(sender, packet.mountEntityId(), packet.sequence());
+            }
         });
         context.setPacketHandled(true);
     }
