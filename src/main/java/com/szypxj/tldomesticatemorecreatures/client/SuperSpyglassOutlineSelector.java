@@ -28,6 +28,18 @@ public final class SuperSpyglassOutlineSelector {
     private static final int SAMPLE_RADIUS = 1;
     private static final int SAMPLE_SIZE = SAMPLE_RADIUS * 2 + 1;
     private static final ByteBuffer PIXELS = ByteBuffer.allocateDirect(SAMPLE_SIZE * SAMPLE_SIZE * 4);
+
+    /*
+     * This buffer source is deliberately reused for every selection-mask render.
+     *
+     * BufferBuilder owns native/direct memory and expands to fit the rendered model.
+     * Creating a new BufferBuilder for every candidate on every render frame leaves
+     * many large direct buffers waiting for GC/Cleaner reclamation and can exhaust
+     * native memory long before Java heap is full.
+     */
+    private static final MultiBufferSource.BufferSource SELECTION_BUFFER_SOURCE =
+            MultiBufferSource.immediate(new BufferBuilder(256));
+
     private static RenderTarget selectionTarget;
     private static int selectedEntityId = -1;
 
@@ -105,7 +117,7 @@ public final class SuperSpyglassOutlineSelector {
         selectionTarget.bindWrite(true);
 
         PoseStack poseStack = event.getPoseStack();
-        MultiBufferSource.BufferSource bufferSource = MultiBufferSource.immediate(new BufferBuilder(256));
+        MultiBufferSource.BufferSource bufferSource = SELECTION_BUFFER_SOURCE;
         EntityRenderDispatcher dispatcher = minecraft.getEntityRenderDispatcher();
         Vec3 camera = event.getCamera().getPosition();
         float partialTick = event.getPartialTick();
