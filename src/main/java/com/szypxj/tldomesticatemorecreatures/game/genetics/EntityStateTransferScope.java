@@ -6,11 +6,17 @@ import net.minecraft.world.entity.TamableAnimal;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /** Transfers TDMC state when another mod replaces a juvenile entity with a new adult entity instance. */
 public final class EntityStateTransferScope {
     private static final String TDMC_PREFIX = "tl_domesticate_more_creatures";
+    private static final Set<String> TDMC_LEGACY_ROOTS = Set.of(
+            "tdmcPetBackpack",
+            "tdmcPetEquipment",
+            "tdmc_base_attributes_v1"
+    );
     private static final ThreadLocal<Deque<Scope>> SCOPES = ThreadLocal.withInitial(ArrayDeque::new);
 
     private EntityStateTransferScope() {}
@@ -27,7 +33,7 @@ public final class EntityStateTransferScope {
         if (scope.transferred || !scope.targetPredicate.test(target)) return false;
 
         for (String key : scope.source.getPersistentData().getAllKeys()) {
-            if (!key.startsWith(TDMC_PREFIX)) continue;
+            if (!key.startsWith(TDMC_PREFIX) && !TDMC_LEGACY_ROOTS.contains(key)) continue;
             Tag value = scope.source.getPersistentData().get(key);
             if (value != null) target.getPersistentData().put(key, value.copy());
         }

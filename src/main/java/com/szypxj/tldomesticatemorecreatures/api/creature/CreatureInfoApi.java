@@ -5,6 +5,10 @@ import com.szypxj.tldomesticatemorecreatures.game.LevelService;
 import com.szypxj.tldomesticatemorecreatures.elite.EliteService;
 import com.szypxj.tldomesticatemorecreatures.game.DangerRatingStatsService;
 import com.szypxj.tldomesticatemorecreatures.api.creature.threat.CreatureThreatProfile;
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureCompatProfile;
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureCompatProfileRegistry;
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureDiet;
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureDietResolver;
 import com.szypxj.tldomesticatemorecreatures.api.creature.taming.CreatureTamingInfoProviderRegistry;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingFoodDisplay;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRule;
@@ -17,6 +21,7 @@ import com.szypxj.tldomesticatemorecreatures.spyglass.SpyglassRadarBaseline;
 import net.minecraft.server.level.ServerLevel;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -33,6 +38,7 @@ public final class CreatureInfoApi {
     private static final double DANGER_POWER_WEIGHT = 0.50D;
     private static final double DANGER_LIFE_WEIGHT = 0.35D;
     private static final double DANGER_SPEED_WEIGHT = 0.15D;
+    private static final ConcurrentHashMap<EntityType<?>, Boolean> NATIVE_RIDEABLE_TYPE_CACHE = new ConcurrentHashMap<>();
 
     private CreatureInfoApi() {
     }
@@ -143,6 +149,62 @@ public final class CreatureInfoApi {
         return Math.max(0, Math.min(100, value));
     }
 
+
+    public static CreatureCompatProfile getCompatProfile(LivingEntity entity) {
+        return getCompatProfile(entity, "en_us");
+    }
+
+    public static CreatureCompatProfile getCompatProfile(LivingEntity entity, String languageCode) {
+        if (entity == null) {
+            return CreatureCompatProfile.EMPTY;
+        }
+        ResourceLocation id = getEntityId(entity.getType());
+        ServerLevel level = entity.level() instanceof ServerLevel serverLevel ? serverLevel : null;
+        return CreatureCompatProfileRegistry.resolve(id, entity.getType(), entity, level, languageCode);
+    }
+
+    public static CreatureCompatProfile getCompatProfile(ServerLevel level, EntityType<?> type) {
+        return getCompatProfile(level, type, "en_us");
+    }
+
+    public static CreatureCompatProfile getCompatProfile(ServerLevel level, EntityType<?> type, String languageCode) {
+        if (type == null) {
+            return CreatureCompatProfile.EMPTY;
+        }
+        ResourceLocation id = getEntityId(type);
+        return CreatureCompatProfileRegistry.resolve(id, type, null, level, languageCode);
+    }
+
+    public static ResourceLocation canonicalEntityTypeId(ResourceLocation entityTypeId) {
+        return CreatureCompatProfileRegistry.canonicalEntityTypeId(entityTypeId);
+    }
+
+    /**
+     * Resolves one shared diet result for TDMC, TCB and TSE.
+     * Third-party authoritative metadata wins; configured taming foods are only the fallback.
+     */
+    public static CreatureDiet getResolvedDiet(LivingEntity entity) {
+        if (entity == null) {
+            return CreatureDiet.UNKNOWN;
+        }
+        CreatureDiet authoritative = getCompatProfile(entity).diet();
+        if (authoritative != CreatureDiet.UNKNOWN) {
+            return authoritative;
+        }
+        return CreatureDietResolver.resolveFromConfiguredFoods(getDisplayTamingInfo(entity));
+    }
+
+    public static CreatureDiet getResolvedDiet(ServerLevel level, EntityType<?> type) {
+        if (level == null || type == null) {
+            return CreatureDiet.UNKNOWN;
+        }
+        CreatureDiet authoritative = getCompatProfile(level, type).diet();
+        if (authoritative != CreatureDiet.UNKNOWN) {
+            return authoritative;
+        }
+        return CreatureDietResolver.resolveFromConfiguredFoods(getDisplayTamingInfo(level, type));
+    }
+
     public static boolean isTdmcAffected(EntityType<?> type) {
         ResourceLocation id = getEntityId(type);
         return id != null && LevelService.isAffectedEntityId(id.toString());
@@ -154,7 +216,11 @@ public final class CreatureInfoApi {
         }
         TamingRule rule = TamingRuleManager.ruleFor(entity).orElse(null);
         if (rule == null) {
-            return CreatureTamingInfoProviderRegistry.resolve(entity);
+            TamingInfo nativeInfo = CreatureTamingInfoProviderRegistry.resolve(entity);
+            if (nativeInfo.tameable()) {
+                return nativeInfo;
+            }
+            return getCompatProfile(entity).nativeTamingInfo();
         }
         List<TamingFoodInfo> foods = TamingRuleManager.displayFoodsFor(entity).stream()
                 .map(CreatureInfoApi::toFoodInfo)
@@ -168,12 +234,34 @@ public final class CreatureInfoApi {
             return TamingInfo.NOT_TAMEABLE;
         }
         if (rule == null) {
-            return CreatureTamingInfoProviderRegistry.resolve(level, type);
+            TamingInfo nativeInfo = CreatureTamingInfoProviderRegistry.resolve(level, type);
+            if (nativeInfo.tameable()) {
+                return nativeInfo;
+            }
+            return getCompatProfile(level, type).nativeTamingInfo();
         }
         List<TamingFoodInfo> foods = TamingRuleManager.displayFoodsFor(level, type).stream()
                 .map(CreatureInfoApi::toFoodInfo)
                 .toList();
         return new TamingInfo(true, rule.method().name(), rule.requiredPlayerLevel(), foods);
+    }
+
+    public static TamingInfo getDisplayTamingInfo(LivingEntity entity) {
+        return displayOnlyConfiguredFoods(getTamingInfo(entity));
+    }
+
+    public static TamingInfo getDisplayTamingInfo(ServerLevel level, EntityType<?> type) {
+        return displayOnlyConfiguredFoods(getTamingInfo(level, type));
+    }
+
+    private static TamingInfo displayOnlyConfiguredFoods(TamingInfo info) {
+        if (info == null || !info.tameable()) {
+            return TamingInfo.NOT_TAMEABLE;
+        }
+        List<TamingFoodInfo> foods = info.foods().stream()
+                .filter(food -> food.configured() && food.amount() > 0)
+                .toList();
+        return new TamingInfo(info.tameable(), info.methodName(), info.requiredPlayerLevel(), foods);
     }
 
     public static boolean isRideable(LivingEntity entity) {
@@ -196,9 +284,22 @@ public final class CreatureInfoApi {
         if (level == null || type == null || type == EntityType.PLAYER) {
             return false;
         }
+        if (NATIVE_RIDEABLE_TYPE_CACHE.computeIfAbsent(type, ignored -> probeNativeRideable(level, type))) {
+            return true;
+        }
+        ResourceLocation entityId = getEntityId(type);
+        if (entityId == null || TamingRuleManager.ruleFor(entityId).isEmpty()) {
+            return false;
+        }
+        EntityRideProfile profile = RidingConfigManager.profile(entityId);
+        return profile.mode() != RideMode.DISABLED
+                && (RidingConfigManager.settings().allows(entityId) || profile.mode() == RideMode.FORCE_GENERIC);
+    }
+
+    private static boolean probeNativeRideable(ServerLevel level, EntityType<?> type) {
         try {
             Entity created = type.create(level);
-            return created instanceof LivingEntity living && isRideable(living);
+            return created instanceof LivingEntity living && NativeRideCapabilityResolver.hasNativePlayerControl(living);
         } catch (RuntimeException exception) {
             return false;
         }

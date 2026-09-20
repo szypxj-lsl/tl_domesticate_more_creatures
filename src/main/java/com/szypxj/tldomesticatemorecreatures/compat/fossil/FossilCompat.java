@@ -1,5 +1,6 @@
 package com.szypxj.tldomesticatemorecreatures.compat.fossil;
 
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureCompatProfileRegistry;
 import com.szypxj.tldomesticatemorecreatures.riding.provider.RideCompatibilityApi;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
@@ -18,6 +19,7 @@ public final class FossilCompat {
         FossilThreatProvider.register();
         FossilRideControlProvider.register();
         FossilTamingInfoProvider.register();
+        CreatureCompatProfileRegistry.register(new FossilCompatProfileProvider());
         RideCompatibilityApi.registerNativeRideProvider(new RideCompatibilityApi.NativeRideProvider() {
             @Override public boolean supports(LivingEntity entity) { return isPrehistoric(entity); }
             @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isNativeRideable(entity); }

@@ -1,5 +1,6 @@
 package com.szypxj.tldomesticatemorecreatures.compat.wanancientbeasts;
 
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureCompatProfileRegistry;
 import com.szypxj.tldomesticatemorecreatures.riding.provider.RideCompatibilityApi;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
@@ -20,6 +21,7 @@ public final class WanAncientBeastsCompat {
         registered = true;
         WanThreatProvider.register();
         WanRideControlProvider.register();
+        CreatureCompatProfileRegistry.register(new WanCompatProfileProvider());
         RideCompatibilityApi.registerNativeRideProvider(new RideCompatibilityApi.NativeRideProvider() {
             @Override public boolean supports(LivingEntity entity) { return isNativeRideable(entity); }
             @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isNativeRideable(entity); }

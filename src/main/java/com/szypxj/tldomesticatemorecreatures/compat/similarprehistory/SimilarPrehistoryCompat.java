@@ -1,5 +1,6 @@
 package com.szypxj.tldomesticatemorecreatures.compat.similarprehistory;
 
+import com.szypxj.tldomesticatemorecreatures.api.creature.compat.CreatureCompatProfileRegistry;
 import com.szypxj.tldomesticatemorecreatures.riding.provider.RideCompatibilityApi;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
@@ -21,6 +22,7 @@ public final class SimilarPrehistoryCompat {
         if (registered) return;
         registered = true;
         SimilarPrehistoryThreatProvider.register();
+        CreatureCompatProfileRegistry.register(new SimilarPrehistoryCompatProfileProvider());
         RideCompatibilityApi.registerNativeRideProvider(new RideCompatibilityApi.NativeRideProvider() {
             @Override public boolean supports(LivingEntity entity) { return isNativeRideable(entity); }
             @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isNativeRideable(entity); }

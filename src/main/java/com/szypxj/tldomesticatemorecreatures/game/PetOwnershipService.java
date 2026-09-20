@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
 import net.minecraft.world.entity.TamableAnimal;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -118,7 +119,10 @@ public final class PetOwnershipService {
         if (DomesticationData.of(entity).customTamed()) {
             return true;
         }
-        return entity instanceof TamableAnimal tamable && tamable.isTame();
+        if (entity instanceof TamableAnimal tamable && tamable.isTame()) {
+            return true;
+        }
+        return entity instanceof AbstractHorse horse && horse.isTamed();
     }
 
     public static void setCustomOwner(LivingEntity entity, Player owner) {
@@ -223,6 +227,15 @@ public final class PetOwnershipService {
             }
 
             if (isOwnedBy(entity, player)) {
+                adoptExternalTame(entity, player);
+                PENDING_TAME_INTERACTIONS.remove(entry.getKey(), pending);
+                continue;
+            }
+
+            // AbstractHorse does not expose vanilla horse ownership through OwnableEntity.
+            // The pending record proves this player interacted while the horse was still untamed;
+            // if it became tamed inside that short window, attribute that tame transition to them.
+            if (entity instanceof AbstractHorse) {
                 adoptExternalTame(entity, player);
                 PENDING_TAME_INTERACTIONS.remove(entry.getKey(), pending);
                 continue;

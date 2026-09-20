@@ -518,5 +518,12 @@
   "gui.tl_domesticate_more_creatures.riding.control.wan_ancient_beasts.oxygen": "供氧",
   "gui.tl_domesticate_more_creatures.riding.control.wan_ancient_beasts.oxygen.desc": "调用远古异兽 Surfer 自身的原生供氧能力。",
   "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack": "骑乘攻击",
-  "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack.desc": "调用不寻常的史前史 Ulughbegsaurus 原生 3 号骑乘攻击。"
+  "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack.desc": "调用不寻常的史前史 Ulughbegsaurus 原生 3 号骑乘攻击。",
+  "compat.tl_domesticate_more_creatures.species.dinosaur": "恐龙",
+  "compat.tl_domesticate_more_creatures.species.arthropod": "节肢生物",
+  "compat.tl_domesticate_more_creatures.species.fish": "史前鱼类",
+  "compat.tl_domesticate_more_creatures.species.mammal": "史前哺乳动物",
+  "compat.tl_domesticate_more_creatures.species.prehistoric_bird": "史前鸟类",
+  "compat.tl_domesticate_more_creatures.species.prehistoric_creature": "史前生物",
+  "compat.tl_domesticate_more_creatures.species.ancient_beast": "远古异兽"
 }

@@ -48,15 +48,17 @@ public final class FossilTamingInfoProvider implements CreatureTamingInfoProvide
         return infoFor(type);
     }
 
-    private static TamingInfo infoFor(EntityType<?> type) {
+    static TamingInfo infoFor(EntityType<?> type) {
         Object data = findData(type);
         Object ai = invoke(data, "ai");
         Object taming = invoke(ai, "taming");
         String method = taming instanceof Enum<?> enumValue ? enumValue.name() : "";
-        if (method.isBlank() || "NONE".equals(method)) {
-            return TamingInfo.NOT_TAMEABLE;
-        }
-        return new TamingInfo(true, "FOSSIL_" + method, 1, List.of());
+        return switch (method) {
+            case "IMPRINTING", "FEEDING", "GEM", "AQUATIC_GEM" ->
+                    new TamingInfo(true, "FOSSIL_" + method, 1, List.of());
+            case "NONE" -> TamingInfo.NOT_TAMEABLE;
+            default -> TamingInfo.NOT_TAMEABLE;
+        };
     }
 
     private static Object findData(EntityType<?> type) {

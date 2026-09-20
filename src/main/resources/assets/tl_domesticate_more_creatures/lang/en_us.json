@@ -518,5 +518,12 @@
   "gui.tl_domesticate_more_creatures.riding.control.wan_ancient_beasts.oxygen": "Oxygen Supply",
   "gui.tl_domesticate_more_creatures.riding.control.wan_ancient_beasts.oxygen.desc": "Uses Wan's Ancient Beasts Surfer's native oxygen-supply ability.",
   "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack": "Mounted Attack",
-  "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack.desc": "Uses Unusual Prehistory's native Ulughbegsaurus rider key-3 attack."
+  "gui.tl_domesticate_more_creatures.riding.control.unusual_prehistory.ulugh_attack.desc": "Uses Unusual Prehistory's native Ulughbegsaurus rider key-3 attack.",
+  "compat.tl_domesticate_more_creatures.species.dinosaur": "Dinosaur",
+  "compat.tl_domesticate_more_creatures.species.arthropod": "Arthropod",
+  "compat.tl_domesticate_more_creatures.species.fish": "Prehistoric Fish",
+  "compat.tl_domesticate_more_creatures.species.mammal": "Prehistoric Mammal",
+  "compat.tl_domesticate_more_creatures.species.prehistoric_bird": "Prehistoric Bird",
+  "compat.tl_domesticate_more_creatures.species.prehistoric_creature": "Prehistoric Creature",
+  "compat.tl_domesticate_more_creatures.species.ancient_beast": "Ancient Beast"
 }
