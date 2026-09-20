@@ -5,6 +5,7 @@ import com.szypxj.tldomesticatemorecreatures.game.LevelService;
 import com.szypxj.tldomesticatemorecreatures.elite.EliteService;
 import com.szypxj.tldomesticatemorecreatures.game.DangerRatingStatsService;
 import com.szypxj.tldomesticatemorecreatures.api.creature.threat.CreatureThreatProfile;
+import com.szypxj.tldomesticatemorecreatures.api.creature.taming.CreatureTamingInfoProviderRegistry;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingFoodDisplay;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRule;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRuleManager;
@@ -153,7 +154,7 @@ public final class CreatureInfoApi {
         }
         TamingRule rule = TamingRuleManager.ruleFor(entity).orElse(null);
         if (rule == null) {
-            return TamingInfo.NOT_TAMEABLE;
+            return CreatureTamingInfoProviderRegistry.resolve(entity);
         }
         List<TamingFoodInfo> foods = TamingRuleManager.displayFoodsFor(entity).stream()
                 .map(CreatureInfoApi::toFoodInfo)
@@ -163,8 +164,11 @@ public final class CreatureInfoApi {
 
     public static TamingInfo getTamingInfo(ServerLevel level, EntityType<?> type) {
         TamingRule rule = TamingRuleManager.ruleFor(type).orElse(null);
-        if (rule == null || level == null) {
+        if (level == null) {
             return TamingInfo.NOT_TAMEABLE;
+        }
+        if (rule == null) {
+            return CreatureTamingInfoProviderRegistry.resolve(level, type);
         }
         List<TamingFoodInfo> foods = TamingRuleManager.displayFoodsFor(level, type).stream()
                 .map(CreatureInfoApi::toFoodInfo)

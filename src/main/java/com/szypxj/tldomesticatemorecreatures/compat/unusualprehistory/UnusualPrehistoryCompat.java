@@ -15,6 +15,8 @@ import java.util.Objects;
 public final class UnusualPrehistoryCompat {
     private static final ResourceLocation ULUGH = Objects.requireNonNull(ResourceLocation.tryParse(
             "unusual_prehistory:ulughbegsaurus"));
+    private static final ResourceLocation HIBBER = Objects.requireNonNull(ResourceLocation.tryParse(
+            "unusual_prehistory:hibbertopterus"));
     private static final ResourceLocation PROVIDER_ID = Objects.requireNonNull(ResourceLocation.tryParse(
             "tl_domesticate_more_creatures:unusual_prehistory_control"));
     private static boolean registered;
@@ -25,8 +27,8 @@ public final class UnusualPrehistoryCompat {
         if (registered) return;
         registered = true;
         RideCompatibilityApi.registerNativeRideProvider(new RideCompatibilityApi.NativeRideProvider() {
-            @Override public boolean supports(LivingEntity entity) { return isUlugh(entity); }
-            @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isUlugh(entity); }
+            @Override public boolean supports(LivingEntity entity) { return isNativeRideable(entity); }
+            @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isNativeRideable(entity); }
         });
         RideControlApi.register(PROVIDER_ID, new RideControlProvider() {
             @Override public int priority() { return 1_050; }
@@ -53,6 +55,11 @@ public final class UnusualPrehistoryCompat {
                 }
             }
         });
+    }
+
+    private static boolean isNativeRideable(LivingEntity entity) {
+        ResourceLocation id = entity == null ? null : ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
+        return ULUGH.equals(id) || HIBBER.equals(id);
     }
 
     private static boolean isUlugh(LivingEntity entity) {

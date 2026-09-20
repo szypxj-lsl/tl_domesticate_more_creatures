@@ -16,6 +16,8 @@ public final class FossilCompat {
         if (registered) return;
         registered = true;
         FossilThreatProvider.register();
+        FossilRideControlProvider.register();
+        FossilTamingInfoProvider.register();
         RideCompatibilityApi.registerNativeRideProvider(new RideCompatibilityApi.NativeRideProvider() {
             @Override public boolean supports(LivingEntity entity) { return isPrehistoric(entity); }
             @Override public boolean hasNativePlayerControl(LivingEntity entity) { return isNativeRideable(entity); }
@@ -33,7 +35,7 @@ public final class FossilCompat {
         return false;
     }
 
-    private static boolean isNativeRideable(LivingEntity entity) {
+    static boolean isNativeRideable(LivingEntity entity) {
         if (!isPrehistoric(entity)) return false;
         try {
             Method infoMethod = entity.getClass().getMethod("info");
