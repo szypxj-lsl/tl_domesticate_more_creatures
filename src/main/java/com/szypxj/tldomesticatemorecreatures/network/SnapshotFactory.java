@@ -257,12 +257,15 @@ public final class SnapshotFactory {
                         : "spyglass.tl_domesticate_more_creatures.taming_method_feeding";
                 List<InspectSnapshot.TamingFoodSnapshot> foods = new ArrayList<>();
                 for (TamingFoodDisplay food : TamingRuleManager.displayFoodsFor(target)) {
+                    if (!food.configured() || food.amount() <= 0) {
+                        continue;
+                    }
                     Item item = ForgeRegistries.ITEMS.getValue(food.itemId());
                     if (item != null) {
                         foods.add(new InspectSnapshot.TamingFoodSnapshot(
                                 item.getDescriptionId(),
                                 food.amount(),
-                                food.configured()
+                                true
                         ));
                     }
                 }

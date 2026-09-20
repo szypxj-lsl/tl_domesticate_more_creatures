@@ -293,7 +293,7 @@ public final class TamingRuleManager {
             # KNOCKOUT：必须先让生物进入眩晕状态，再喂食。
             # native_foods：为生物自身 isFood() 识别到的原生可食用物品逐项配置驯服数量。
             # 每一种原生食物都拥有独立 amount，不存在整只生物共用的默认数量。
-            # 自动检测到但没有配置 amount 的原生食物会显示在望远镜中，但不会增加驯服进度。
+            # 自动检测到但没有配置 amount 的原生食物不会显示在望远镜中，也不会增加驯服进度。
             # extra_foods：额外加入 TDMC 的驯服食物，不会改变原版繁殖、引诱或其他 isFood() 行为。
             # removed_native_foods：仅从 TDMC 驯服食物中排除原生 isFood() 食物，不改变原版繁殖或引诱。
             # foods：旧版兼容写法。属于原生食物时作为数量配置，不属于原生食物时作为额外驯服食物。
