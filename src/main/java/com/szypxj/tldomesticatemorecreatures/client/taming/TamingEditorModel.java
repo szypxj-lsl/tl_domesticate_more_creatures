@@ -210,6 +210,17 @@ public final class TamingEditorModel {
         if (result.success() && hasRule(id)) {
             Set<ResourceLocation> nativeSet = Set.copyOf(result.items());
             TamingEditorRule normalized = drafts.get(id).normalizeLegacy(nativeSet);
+
+            Map<ResourceLocation, Integer> currentNativeFoods = new LinkedHashMap<>(normalized.nativeFoods());
+            currentNativeFoods.keySet().retainAll(nativeSet);
+
+            Set<ResourceLocation> currentRemovedNativeFoods = new LinkedHashSet<>(normalized.removedNativeFoods());
+            currentRemovedNativeFoods.retainAll(nativeSet);
+
+            normalized = normalized
+                    .withNativeFoods(currentNativeFoods)
+                    .withRemovedNativeFoods(currentRemovedNativeFoods);
+
             drafts.put(id, normalized);
         }
     }
