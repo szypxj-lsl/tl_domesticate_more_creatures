@@ -7,11 +7,7 @@ import com.szypxj.tldomesticatemorecreatures.imprint.ImprintService;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.animal.Animal;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.slf4j.Logger;
@@ -122,18 +118,11 @@ public final class TamingRuleManager {
         if (entityId == null || ruleFor(entityId).isEmpty()) {
             return List.of();
         }
-        ResolvedFoods cached = FOOD_CACHE.get(entityId);
-        if (cached != null) {
-            return cached.display();
-        }
-        Entity created = type.create(level);
-        if (!(created instanceof LivingEntity living)) {
+        TamingRule rule = rules.get(entityId);
+        if (rule == null) {
             return List.of();
         }
-        TamingRule rule = rules.get(entityId);
-        ResolvedFoods resolved = resolveFoods(living, rule);
-        ResolvedFoods previous = FOOD_CACHE.putIfAbsent(entityId, resolved);
-        return (previous == null ? resolved : previous).display();
+        return FOOD_CACHE.computeIfAbsent(entityId, ignored -> resolveFoods(rule)).display();
     }
 
     public static Map<ResourceLocation, TamingRule> all() {
@@ -152,63 +141,57 @@ public final class TamingRuleManager {
         if (rule == null) {
             return ResolvedFoods.EMPTY;
         }
-        return FOOD_CACHE.computeIfAbsent(entityId, ignored -> resolveFoods(entity, rule));
+        return FOOD_CACHE.computeIfAbsent(entityId, ignored -> resolveFoods(rule));
     }
 
-    private static ResolvedFoods resolveFoods(LivingEntity entity, TamingRule rule) {
-        List<String> nativeItems = detectNativeFoods(entity);
-        TamingFoodPlan.Result plan = TamingFoodPlan.resolve(
-                nativeItems,
-                specs(rule.nativeFoods()),
-                specs(rule.extraFoods()),
-                specs(rule.legacyFoods()),
-                rule.removedNativeFoods().stream().map(ResourceLocation::toString).toList()
-        );
-
-        List<TamingFoodDisplay> display = new ArrayList<>();
-        for (TamingFoodPlan.Entry entry : plan.display()) {
-            ResourceLocation itemId = ResourceLocation.tryParse(entry.item());
-            if (itemId == null || ForgeRegistries.ITEMS.getValue(itemId) == null) {
-                continue;
-            }
-            display.add(new TamingFoodDisplay(itemId, entry.amount(), entry.configured()));
+    /**
+     * Resolves the final TDMC taming foods from the saved rule itself.
+     *
+     * <p>Native-food detection belongs to the editor/import stage. Once a rule has been saved,
+     * its configured foods are authoritative for actual taming, spyglass snapshots and external
+     * creature-info API consumers. Re-running {@code Animal#isFood} here would make runtime
+     * behavior disagree with compatibility-aware editor detection (for example Fossil diets).</p>
+     */
+    private static ResolvedFoods resolveFoods(TamingRule rule) {
+        if (rule == null) {
+            return ResolvedFoods.EMPTY;
         }
 
-        List<TamingFood> usable = new ArrayList<>();
-        for (TamingFoodPlan.Entry entry : plan.usable()) {
-            ResourceLocation itemId = ResourceLocation.tryParse(entry.item());
-            if (itemId == null || ForgeRegistries.ITEMS.getValue(itemId) == null) {
-                continue;
-            }
-            usable.add(new TamingFood(itemId, entry.amount()));
+        Map<ResourceLocation, TamingFood> configured = new LinkedHashMap<>();
+        appendConfiguredFoods(configured, rule.nativeFoods(), rule.removedNativeFoods());
+        appendConfiguredFoods(configured, rule.extraFoods(), rule.removedNativeFoods());
+        appendConfiguredFoods(configured, rule.legacyFoods(), rule.removedNativeFoods());
+
+        if (configured.isEmpty()) {
+            return ResolvedFoods.EMPTY;
+        }
+
+        List<TamingFoodDisplay> display = new ArrayList<>(configured.size());
+        List<TamingFood> usable = new ArrayList<>(configured.size());
+        for (TamingFood food : configured.values()) {
+            display.add(new TamingFoodDisplay(food.itemId(), food.amount(), true));
+            usable.add(food);
         }
         return new ResolvedFoods(List.copyOf(display), List.copyOf(usable));
     }
 
-    private static List<String> detectNativeFoods(LivingEntity entity) {
-        if (!(entity instanceof Animal animal)) {
-            return List.of();
+    private static void appendConfiguredFoods(
+            Map<ResourceLocation, TamingFood> target,
+            List<TamingFood> source,
+            Set<ResourceLocation> removedNativeFoods
+    ) {
+        if (source == null || source.isEmpty()) {
+            return;
         }
-        List<String> result = new ArrayList<>();
-        for (Item item : ForgeRegistries.ITEMS.getValues()) {
-            ResourceLocation itemId = ForgeRegistries.ITEMS.getKey(item);
-            if (itemId == null) {
+        for (TamingFood food : source) {
+            if (food == null
+                    || food.itemId() == null
+                    || food.amount() < 1
+                    || removedNativeFoods.contains(food.itemId())) {
                 continue;
             }
-            ItemStack stack = new ItemStack(item);
-            if (animal.isFood(stack)) {
-                result.add(itemId.toString());
-            }
+            target.putIfAbsent(food.itemId(), food);
         }
-        return List.copyOf(result);
-    }
-
-    private static List<TamingFoodPlan.Spec> specs(List<TamingFood> foods) {
-        List<TamingFoodPlan.Spec> result = new ArrayList<>(foods.size());
-        for (TamingFood food : foods) {
-            result.add(new TamingFoodPlan.Spec(food.itemId().toString(), food.amount()));
-        }
-        return List.copyOf(result);
     }
 
 
@@ -291,9 +274,9 @@ public final class TamingRuleManager {
             # required_player_level：玩家需要达到的 TDMC 等级，未填写时默认为 1。
             # FEED：生物清醒时直接喂食。
             # KNOCKOUT：必须先让生物进入眩晕状态，再喂食。
-            # native_foods：为生物自身 isFood() 识别到的原生可食用物品逐项配置驯服数量。
+            # native_foods：为驯服编辑器识别到的原生可食用物品逐项配置驯服数量；保存后该规则就是运行时权威数据。
             # 每一种原生食物都拥有独立 amount，不存在整只生物共用的默认数量。
-            # 自动检测到但没有配置 amount 的原生食物不会显示在望远镜中，也不会增加驯服进度。
+            # 自动检测到但没有配置 amount 的原生食物不会写入最终驯服食物，也不会显示在望远镜/图鉴中或增加驯服进度。
             # extra_foods：额外加入 TDMC 的驯服食物，不会改变原版繁殖、引诱或其他 isFood() 行为。
             # removed_native_foods：仅从 TDMC 驯服食物中排除原生 isFood() 食物，不改变原版繁殖或引诱。
             # foods：旧版兼容写法。属于原生食物时作为数量配置，不属于原生食物时作为额外驯服食物。

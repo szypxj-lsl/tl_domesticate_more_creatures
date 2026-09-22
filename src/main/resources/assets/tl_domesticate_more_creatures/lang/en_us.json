@@ -476,6 +476,8 @@
   "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.ascend.desc": "Uses Saint's Dragons' native jump, takeoff or ascent input.",
   "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.descend": "Descend",
   "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.descend.desc": "Uses Saint's Dragons' native descent input.",
+  "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.attack_mode": "Change Attack Mode",
+  "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.roar": "Roar",
   "gui.tl_domesticate_more_creatures.riding.control.ers.default_attack": "Primary Attack",
   "gui.tl_domesticate_more_creatures.riding.control.ers.default_attack.desc": "Executes the ERS mount's native default attack.",
   "gui.tl_domesticate_more_creatures.riding.control.ers.special_attack": "Special Attack",

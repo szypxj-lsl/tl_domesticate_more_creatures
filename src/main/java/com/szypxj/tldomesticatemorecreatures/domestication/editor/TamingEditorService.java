@@ -2,6 +2,7 @@ package com.szypxj.tldomesticatemorecreatures.domestication.editor;
 
 import com.mojang.logging.LogUtils;
 import com.szypxj.tldomesticatemorecreatures.TlDomesticateMoreCreatures;
+import com.szypxj.tldomesticatemorecreatures.compat.fossil.FossilNativeFoodCompat;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRule;
 import com.szypxj.tldomesticatemorecreatures.domestication.TamingRuleManager;
 import com.szypxj.tldomesticatemorecreatures.game.LevelService;
@@ -232,11 +233,22 @@ public final class TamingEditorService {
         if (type == null || !isLivingEntityType(type)) {
             return NativeFoodsResult.failure();
         }
+
         try {
             Entity created = type.create(level);
             if (!(created instanceof LivingEntity living)) {
                 return NativeFoodsResult.failure();
             }
+
+            // Fossils & Archeology does not expose its Dinopedia diet through Animal#isFood.
+            // Read the exact dino.data().diet() + FoodMappingsManager cache used by Dinopedia.
+            if ("fossil".equals(entityId.getNamespace())) {
+                List<ResourceLocation> fossilFoods = FossilNativeFoodCompat.detectNativeFoodIds(living);
+                if (fossilFoods != null) {
+                    return new NativeFoodsResult(true, fossilFoods);
+                }
+            }
+
             if (!(living instanceof Animal animal)) {
                 return new NativeFoodsResult(true, List.of());
             }

@@ -477,6 +477,8 @@
   "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.descend": "下降",
   "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.descend.desc": "使用圣龙原生下降输入。",
   "gui.tl_domesticate_more_creatures.riding.control.ers.default_attack": "普通攻击",
+  "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.attack_mode": "改变近战模式",
+  "gui.tl_domesticate_more_creatures.riding.control.saintsdragons.roar": "咆哮",
   "gui.tl_domesticate_more_creatures.riding.control.ers.default_attack.desc": "执行 ERS 坐骑自身的默认攻击。",
   "gui.tl_domesticate_more_creatures.riding.control.ers.special_attack": "特殊攻击",
   "gui.tl_domesticate_more_creatures.riding.control.ers.special_attack.desc": "执行 ERS 坐骑自身的特殊攻击。",

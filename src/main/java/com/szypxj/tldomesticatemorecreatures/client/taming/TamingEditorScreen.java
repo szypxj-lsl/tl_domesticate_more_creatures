@@ -11,6 +11,7 @@ import com.szypxj.tldomesticatemorecreatures.domestication.editor.TamingEditorSe
 import com.szypxj.tldomesticatemorecreatures.domestication.editor.TamingEditorSnapshot;
 import com.szypxj.tldomesticatemorecreatures.network.NetworkHandler;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -124,8 +125,7 @@ public final class TamingEditorScreen extends Screen {
             if (filter == ListFilter.CONFIGURED && !model.hasRule(id)) {
                 continue;
             }
-            EntityType<?> type = ForgeRegistries.ENTITY_TYPES.getValue(id);
-            String name = type == null ? id.toString() : type.getDescription().getString();
+            String name = entityDisplayName(id);
             if (!query.isEmpty()
                     && !id.toString().toLowerCase(Locale.ROOT).contains(query)
                     && !name.toLowerCase(Locale.ROOT).contains(query)) {
@@ -391,8 +391,7 @@ public final class TamingEditorScreen extends Screen {
         if (entityId == null || validationKey == null || validationKey.isBlank()) {
             return Component.translatable("msg.tl_domesticate_more_creatures.taming_editor.invalid_rule");
         }
-        EntityType<?> entityType = ForgeRegistries.ENTITY_TYPES.getValue(entityId);
-        Component entityName = entityType == null ? Component.literal(entityId.toString()) : entityType.getDescription();
+        Component entityName = entityDisplayComponent(entityId);
         return Component.translatable(
                 "msg.tl_domesticate_more_creatures.taming_editor.entity_error",
                 entityName,
@@ -687,8 +686,66 @@ public final class TamingEditorScreen extends Screen {
     }
 
     private String entityDisplayName(ResourceLocation id) {
+        return entityDisplayComponent(id).getString();
+    }
+
+    private Component entityDisplayComponent(ResourceLocation id) {
         EntityType<?> type = ForgeRegistries.ENTITY_TYPES.getValue(id);
-        return type == null ? id.toString() : type.getDescription().getString();
+        if (type != null) {
+            String translationKey = type.getDescriptionId();
+            if (I18n.exists(translationKey)) {
+                return type.getDescription();
+            }
+        }
+        Component compatibilityName = compatibilityEntityName(id);
+        return compatibilityName != null
+                ? compatibilityName
+                : Component.literal(fallbackRegistryName(id));
+    }
+
+    private static Component compatibilityEntityName(ResourceLocation id) {
+        if (id == null) {
+            return null;
+        }
+        String namespace = id.getNamespace();
+        String path = id.getPath();
+        String[] candidateKeys = {
+                "gui." + namespace + "." + path + ".name",
+                "entity." + namespace + "." + path + ".temperate",
+                "entity." + namespace + "." + path + ".default",
+                "entity." + namespace + "." + path + ".normal"
+        };
+        for (String key : candidateKeys) {
+            if (I18n.exists(key)) {
+                return Component.translatable(key);
+            }
+        }
+        return null;
+    }
+
+    private static String fallbackRegistryName(ResourceLocation id) {
+        if (id == null) {
+            return "";
+        }
+        String path = id.getPath().replace('_', ' ').replace('-', ' ').trim();
+        if (path.isEmpty()) {
+            return id.toString();
+        }
+        StringBuilder result = new StringBuilder(path.length());
+        boolean capitalize = true;
+        for (int i = 0; i < path.length(); i++) {
+            char c = path.charAt(i);
+            if (Character.isWhitespace(c)) {
+                if (result.length() > 0 && result.charAt(result.length() - 1) != ' ') {
+                    result.append(' ');
+                }
+                capitalize = true;
+            } else {
+                result.append(capitalize ? Character.toUpperCase(c) : c);
+                capitalize = false;
+            }
+        }
+        return result.toString();
     }
 
     private int foodListTop() {
